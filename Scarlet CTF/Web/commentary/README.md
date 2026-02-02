@@ -56,7 +56,7 @@ We connecting address.
 The page displays the default Nginx welcome page.indicating that the backend server is accessible
 and that the default configuration was left exposed.
 
-![](C:\Users\0427r\Desktop\Scarlet CTF\Web\commentary\image\img1.png)
+![](image\img1.png)
 
 Inspecting the page source of the default Nginx site reveals hidden HTML comments:
 
@@ -78,4 +78,5 @@ Inspecting the page source of the default Nginx site reveals hidden HTML comment
 
 - OSI Model
 - ICMP (Internet Control Message Protocol)
+
 - Nginx Reverse Proxy behavior

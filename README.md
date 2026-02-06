@@ -1,2 +1,2 @@
 # CTF
-This is my pactise CTF project.
+This is my practice CTF project.

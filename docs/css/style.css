@@ -1,15 +1,11 @@
-/* ============================================
-   sec-archive  –  style.css  (improved)
-   ============================================ */
-
 :root{
-  --sidebar-w: 280px;
-  --toc-w: 300px;
-  --resizer-w: 8px;
-  --topbar-h: 56px;
+  --sidebar-w: 300px;
+  --resizer-w: 10px;
+  --toc-w: 320px;
 
-  --bg: #fafafa;
+  --bg: #f6f7f9;
   --panel: #ffffff;
+  --text: #111827;
   --muted: #6b7280;
   --border: #e5e7eb;
   --hover: #f3f4f6;
@@ -17,7 +13,6 @@
   --accent: #2563eb;
   --accent-soft: #e6f0ff;
 
-  --text: #111827;
   --code-bg: #f3f4f6;
   --pre-bg: #f4f5f7;
 }
@@ -25,6 +20,7 @@
 body.dark{
   --bg: #0f0f10;
   --panel: #17171a;
+  --text: #e5e7eb;
   --muted: #a1a1aa;
   --border: #2a2a2f;
   --hover: #232329;
@@ -32,334 +28,354 @@ body.dark{
   --accent: #60a5fa;
   --accent-soft: #1b2a44;
 
-  --text: #e5e7eb;
   --code-bg: #1f1f23;
   --pre-bg: #1b1b20;
 }
 
-*{ box-sizing: border-box; }
+*{ box-sizing:border-box; }
 
-/* ===== 全域 body：archive 頁不允許 body 自己滾 ===== */
-html, body{
-  margin: 0;
-  padding: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",Inter,system-ui,sans-serif;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
 }
 
-/* archive page: 鎖住 body 不滾（三欄各自滾） */
-body.archive-page{
-  height: 100vh;
-  overflow: hidden;
+body.dragging{ user-select:none; cursor:col-resize; }
+
+/* ===== Home (index) ===== */
+.home-shell{
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+  padding:40px 18px;
 }
 
-body.dragging{
-  user-select: none;
-  cursor: col-resize;
+.home-layout{
+  width:min(1100px, 100%);
+  display:grid;
+  grid-template-columns: 320px 1fr;
+  gap:24px;
+  align-items:start;
 }
 
-/* ===== Topbar ===== */
+.profile-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:26px 22px;
+}
+
+.avatar{
+  width:132px;
+  height:132px;
+  border-radius:50%;
+  object-fit:cover;
+  border:1px solid var(--border);
+  display:block;
+  margin:0 auto 14px;
+}
+
+.profile-card h1{
+  margin:0;
+  text-align:center;
+  font-size:22px;
+  font-weight:700;
+}
+
+.profile-card .sub{
+  text-align:center;
+  margin:8px 0 0;
+  color:var(--muted);
+  font-size:14px;
+}
+
+.home-links{
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  gap:10px;
+  margin-top:18px;
+}
+
+.icon-link{
+  width:36px;
+  height:36px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:transparent;
+  text-decoration:none;
+}
+.icon-link:hover{ background:var(--hover); }
+
+.gh{ width:18px; height:18px; fill:var(--text); }
+
+.pill-link{
+  border:1px solid var(--border);
+  background:transparent;
+  color:var(--text);
+  border-radius:12px;
+  padding:7px 10px;
+  cursor:pointer;
+  text-decoration:none;
+  font-size:14px;
+}
+.pill-link:hover{ background:var(--hover); }
+
+.timeline-card{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:26px 22px;
+  min-height:300px;
+}
+
+.timeline-title{
+  font-size:22px;
+  font-weight:700;
+  margin-bottom:18px;
+}
+
+.timeline-item{
+  padding:16px 16px;
+  border:1px solid var(--border);
+  border-radius:14px;
+  margin-bottom:12px;
+  background:transparent;
+  cursor:pointer;
+  transition:background .15s ease, transform .12s ease;
+}
+.timeline-item:hover{ background:var(--hover); }
+.timeline-item:active{ transform:scale(.99); }
+
+.tag{
+  display:inline-block;
+  font-size:12px;
+  padding:4px 10px;
+  border-radius:999px;
+  background:var(--code-bg);
+  color:var(--muted);
+  margin-bottom:8px;
+}
+
+/* ===== Archive topbar ===== */
 .topbar{
-  height: var(--topbar-h);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 14px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  position: relative;
-  z-index: 10;
-  flex-shrink: 0;          /* 不被壓縮 */
+  height:56px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:0 14px;
+  background:var(--panel);
+  border-bottom:1px solid var(--border);
+  position:sticky;
+  top:0;
+  z-index:10;
 }
 
-.topbar-left{
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.brand{
-  font-weight: 600;
-  letter-spacing: .2px;
-}
-
-.topbar-right{
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.topbar-left{ display:flex; align-items:center; gap:10px; }
+.brand{ font-weight:700; letter-spacing:.2px; }
 
 .icon-btn{
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  border-radius: 10px;
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: 14px;
+  border:1px solid var(--border);
+  background:transparent;
+  color:var(--text);
+  border-radius:12px;
+  padding:7px 10px;
+  cursor:pointer;
+}
+.icon-btn:hover{ background:var(--hover); }
+
+.mini-btn{
+  border:1px solid var(--border);
+  background:transparent;
+  color:var(--text);
+  border-radius:10px;
+  padding:4px 8px;
+  cursor:pointer;
+}
+.mini-btn:hover{ background:var(--hover); }
+
+.archive-shell{
+  width:min(1400px, 100%);
+  margin:0 auto;
+  padding:14px 14px 24px;
 }
 
-.icon-btn:hover{
-  background: var(--hover);
-}
-
-/* =========================================
-   index layout（首頁：左卡片 + 右 timeline）
-   ========================================= */
-.layout{
-  display: flex;
-  min-height: 100vh;
-  width: 100%;
-}
-
-/* =========================================
-   archive layout：三欄 grid
-   ★ 核心修正：固定高度 + 三欄各自獨立滾動
-   ========================================= */
+/* ===== Archive layout: 同高三欄 ===== */
 .archive-layout{
-  display: grid;
-  grid-template-columns: var(--sidebar-w) var(--resizer-w) 1fr var(--resizer-w) var(--toc-w);
-  /* 關鍵：高度 = 視窗高度 - topbar 高度，這樣三欄才能各自滾 */
-  height: calc(100vh - var(--topbar-h));
-  width: 100%;
-  /* 不允許 grid 自身滾 */
-  overflow: hidden;
+  display:grid;
+  grid-template-columns: var(--sidebar-w) var(--resizer-w) 1fr var(--toc-w);
+  gap:0;
+  min-height: calc(100vh - 56px - 38px);
+  align-items:stretch; /* 同高 */
 }
 
-/* 讓 grid children 可以正確 shrink（否則 overflow 不生效） */
-.archive-layout > *{
-  min-height: 0;
-  min-width: 0;
-}
-
-.archive-layout.toc-collapsed{
-  grid-template-columns: var(--sidebar-w) var(--resizer-w) 1fr var(--resizer-w) 0px;
-}
-.archive-layout.toc-collapsed #toc{ display: none; }
-
-/* ===== Panel 共用 ===== */
 .panel{
-  background: var(--panel);
-  /* 不在這裡統一設 overflow，改由各 panel 自己控制 */
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:16px;
+  overflow:auto;
 }
 
-/* ===== Resizer ===== */
-.resizer{
-  background: var(--bg);
-  cursor: col-resize;
-  position: relative;
-}
-.resizer::after{
-  content: "";
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 2px;
-  transform: translateX(-50%);
-  background: var(--border);
-  transition: background .15s;
-}
-.resizer:hover::after{
-  background: var(--accent);
-}
-
-/* ===== 左側 Sidebar：獨立滾動 ===== */
 #sidebar{
-  padding: 16px 14px;
-  border-right: 1px solid var(--border);
-  overflow-y: auto;
-  overflow-x: hidden;
+  padding:14px 12px;
 }
 
 .sidebar-title-row{
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 8px 6px 12px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 10px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 8px 10px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:10px;
 }
 
-.sidebar-title{
-  font-weight: 700;
-  letter-spacing: .3px;
-}
+.sidebar-title{ font-weight:800; }
 
-.mini-btn{
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  border-radius: 10px;
-  padding: 4px 8px;
-  cursor: pointer;
-  font-size: 13px;
-}
-.mini-btn:hover{ background: var(--hover); }
+.children{ display:none; margin-top:10px; }
+.children.open{ display:block; }
 
 .node{
-  padding: 8px 10px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background .15s ease, transform .12s ease;
+  padding:8px 10px;
+  border-radius:12px;
+  cursor:pointer;
+  font-size:14px;
 }
-.node:hover{
-  background: var(--hover);
-}
-.node:active{
-  transform: scale(.98);
-}
+.node:hover{ background:var(--hover); }
 .node.active{
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-weight: 600;
+  background:var(--accent-soft);
+  color:var(--accent);
+  font-weight:700;
 }
 
-.children{
-  margin-top: 10px;
-  display: none;
+.resizer{
+  cursor:col-resize;
+  position:relative;
 }
-.children.open{ display: block; }
+.resizer::after{
+  content:"";
+  position:absolute;
+  top:10px;
+  bottom:10px;
+  left:50%;
+  width:2px;
+  transform:translateX(-50%);
+  background:var(--border);
+  border-radius:999px;
+}
 
-/* ===== 中間 Content：獨立滾動 ===== */
 #content{
-  padding: 22px 28px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  /* Markdown typography */
-  font-size: 16.5px;
-  line-height: 1.85;
-  letter-spacing: .15px;
+  padding:18px 22px;
 }
 
-#content h1{ font-size: 30px; margin: 22px 0 10px; }
-#content h2{ font-size: 22px; margin: 26px 0 10px; }
-#content h3{ font-size: 18px; margin: 18px 0 8px; }
+/* markdown */
+#content{
+  font-size:16.5px;
+  line-height:1.85;
+  letter-spacing:.15px;
+}
 
-#content p{ margin: 10px 0; color: var(--text); }
-#content .muted{ color: var(--muted); }
+#content h1{ font-size:30px; margin:18px 0 10px; }
+#content h2{ font-size:22px; margin:22px 0 10px; }
+#content h3{ font-size:18px; margin:16px 0 8px; }
 
 #content code{
-  background: var(--code-bg);
-  padding: 2px 6px;
-  border-radius: 8px;
-  font-size: 0.95em;
+  background:var(--code-bg);
+  padding:2px 6px;
+  border-radius:8px;
+  font-size:.95em;
 }
-
 #content pre{
-  background: var(--pre-bg);
-  padding: 14px;
-  border-radius: 14px;
-  overflow-x: auto;           /* 水平可滾（長 code block） */
-  border: 1px solid var(--border);
+  background:var(--pre-bg);
+  padding:14px;
+  border-radius:14px;
+  border:1px solid var(--border);
+  overflow:auto;
 }
-
-/* pre 裡面的 code 不要 word-break */
-#content pre code{
-  background: transparent;
-  padding: 0;
-  border-radius: 0;
-  white-space: pre;
-  word-break: normal;
-}
-
 #content img{
-  max-width: 100%;
-  border-radius: 12px;
-  border: 1px solid var(--border);
+  max-width:100%;
+  border-radius:14px;
+  border:1px solid var(--border);
 }
 
-/* ===== 右側 TOC：獨立滾動、寬度固定 ===== */
-#toc{
-  padding: 16px 14px;
-  border-left: 1px solid var(--border);
-  overflow-y: auto;
-  overflow-x: hidden;
+/* ===== Right side: tocWrap (固定欄位) + tocCard(縮高度) ===== */
+.toc-wrap{
+  position:relative;
+  width:var(--toc-w);
+  height:100%;
+}
+
+.toc-handle{
+  position:absolute;
+  left:-14px;
+  top:16px;
+  width:28px;
+  height:34px;
+  border:1px solid var(--border);
+  background:var(--panel);
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  user-select:none;
+}
+.toc-handle:hover{ background:var(--hover); }
+
+.toc-card{
+  height: calc(100% - 0px);
+  padding:12px 12px;
 }
 
 .toc-header{
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-  /* 黏住不隨內容滾走 */
-  position: sticky;
-  top: 0;
-  background: var(--panel);
-  z-index: 1;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 8px 10px;
+  border-bottom:1px solid var(--border);
+  margin-bottom:10px;
 }
 
 .toc-header span{
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--muted);
+  font-size:14px;
+  font-weight:700;
+  color:var(--muted);
 }
 
-#toc h3{
-  margin: 8px 6px 12px;
-  font-size: 14px;
-  letter-spacing: .3px;
-  color: var(--muted);
-  text-transform: uppercase;
-}
-
-/* challenge list items */
 .challenge-item{
-  padding: 8px 10px;
-  margin: 6px 0;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background .15s ease, color .15s ease;
-  font-size: 14px;
+  padding:8px 10px;
+  margin:6px 0;
+  border-radius:12px;
+  cursor:pointer;
+  font-size:14px;
 }
 .challenge-item:hover{
-  background: var(--accent-soft);
-  color: var(--accent);
+  background:var(--accent-soft);
+  color:var(--accent);
 }
 .challenge-item.active{
-  background: var(--accent);
-  color: white;
-  font-weight: 600;
+  background:var(--accent);
+  color:white;
+  font-weight:700;
 }
 
-.muted{
-  color: var(--muted);
-}
+.muted{ color:var(--muted); }
 
-/* ===== 美化 scrollbar（Chrome / Edge / Safari） ===== */
-#sidebar::-webkit-scrollbar,
-#content::-webkit-scrollbar,
-#toc::-webkit-scrollbar{
-  width: 6px;
+/* ===== TOC collapsed: 右側縮成把手寬度，但 handle 仍可點 ===== */
+.archive-layout.toc-collapsed{
+  grid-template-columns: var(--sidebar-w) var(--resizer-w) 1fr 14px;
 }
-
-#sidebar::-webkit-scrollbar-track,
-#content::-webkit-scrollbar-track,
-#toc::-webkit-scrollbar-track{
-  background: transparent;
+.archive-layout.toc-collapsed .toc-card{
+  display:none;
 }
-
-#sidebar::-webkit-scrollbar-thumb,
-#content::-webkit-scrollbar-thumb,
-#toc::-webkit-scrollbar-thumb{
-  background: var(--border);
-  border-radius: 3px;
+.archive-layout.toc-collapsed .toc-wrap{
+  width:14px;
 }
-
-#sidebar::-webkit-scrollbar-thumb:hover,
-#content::-webkit-scrollbar-thumb:hover,
-#toc::-webkit-scrollbar-thumb:hover{
-  background: var(--muted);
-}
-
-/* Firefox scrollbar */
-#sidebar, #content, #toc{
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+.archive-layout.toc-collapsed .toc-handle{
+  left:-14px; /* 仍露出 */
 }

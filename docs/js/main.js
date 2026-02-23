@@ -22,7 +22,11 @@ window.onload = init;
 // ------------------------------
 
 async function loadConfig() {
-  const res = await fetch("config.json");
+  const res = await fetch("data/config.json");
+  if (!res.ok) {
+    console.error("config.json 載入失敗");
+    return;
+  }
   CFG = await res.json();
 }
 
@@ -32,7 +36,7 @@ async function loadConfig() {
 
 async function loadOrder() {
   try {
-    const res = await fetch("order.json");
+    const res = await fetch("data/order.json");
     ORDER = await res.json();
   } catch {
     ORDER = {};

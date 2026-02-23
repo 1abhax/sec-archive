@@ -1,5 +1,3 @@
-// archive.js
-
 import { loadCTFEvent } from "./CTF.js";
 
 async function init() {
@@ -8,7 +6,6 @@ async function init() {
   const res = await fetch("./data/order_CTF.json");
   const data = await res.json();
 
-  // 建立主分類
   const mainNode = document.createElement("div");
   mainNode.className = "node folder";
   mainNode.textContent = "#CTF";
@@ -18,7 +15,10 @@ async function init() {
   container.className = "children open";
   sidebar.appendChild(container);
 
-  // 按照順序建立 CTF play
+  mainNode.onclick = () => {
+    container.classList.toggle("open");
+  };
+
   data.ctf_order.forEach(name => {
     const node = document.createElement("div");
     node.className = "node";
@@ -30,6 +30,39 @@ async function init() {
 
     container.appendChild(node);
   });
+
+  enableResize();
+  enableThemeToggle();
 }
 
-init();
+function enableResize() {
+  const left = document.getElementById("sidebar");
+  const middle = document.getElementById("content");
+
+  const resizer = document.createElement("div");
+  resizer.style.width = "5px";
+  resizer.style.cursor = "col-resize";
+  resizer.style.background = "#ddd";
+
+  left.after(resizer);
+
+  resizer.addEventListener("mousedown", () => {
+    document.onmousemove = e => {
+      left.style.width = e.clientX + "px";
+    };
+    document.onmouseup = () => {
+      document.onmousemove = null;
+    };
+  });
+}
+
+function enableThemeToggle() {
+  const btn = document.getElementById("themeToggle");
+  if (!btn) return;
+
+  btn.onclick = () => {
+    document.body.classList.toggle("dark");
+  };
+}
+
+document.addEventListener("DOMContentLoaded", init);

@@ -1,28 +1,16 @@
 /* ===== 全域背景 ===== */
 body {
-  margin:0;
-  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,sans-serif;
-  background: #f5f6f8;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  min-height:100vh;
-  color:#111;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, Inter, sans-serif;
+  background: #fafafa;
 }
-
 /* ===== 主容器 ===== */
 .layout,
 .archive-layout {
-  width:92%;
-  max-width:1500px;
-  min-height:85vh;
-  display:flex;
-  border-radius:32px;
-  background:white;
-  box-shadow:
-    0 20px 60px rgba(0,0,0,0.08),
-    0 2px 8px rgba(0,0,0,0.05);
-  overflow:hidden;
+  display: grid;
+  grid-template-columns: 260px 1fr 300px;
+  height: 100vh;
+  width: 100vw;
 }
 
 /* ===== 左側個人資料 ===== */
@@ -272,4 +260,49 @@ pre {
 .challenge-item.active {
   background: #0066ff;
   color: white;
+}
+
+#content {
+  font-size: 17px;
+  line-height: 1.8;
+  -webkit-font-smoothing: antialiased;
+  max-width: 900px;
+  margin: auto;
+}
+
+#content h1, #content h2, #content h3 {
+  font-weight: 600;
+  margin-top: 1.8em;
+}
+
+#content code {
+  background: #f3f4f6;
+  padding: 3px 6px;
+  border-radius: 6px;
+}
+
+.topbar {
+  height: 50px;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
+  align-items: center;
+  background: white;
+  border-bottom: 1px solid #eee;
+}
+
+body.dark {
+  background: #121212;
+  color: #eee;
+}
+
+body.dark #content {
+  background: #1e1e1e;
+}
+
+.children {
+  display: none;
+}
+.children.open {
+  display: block;
 }

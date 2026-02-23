@@ -1,5 +1,3 @@
-// CTF.js
-
 const USER = "1abhax";
 const REPO = "sec-archive";
 const BRANCH = "main";
@@ -13,20 +11,17 @@ export async function loadCTFEvent(eventName) {
 
   const readmes = await collectReadmes(eventName);
 
-  if (readmes.length === 0) {
+  if (!readmes.length) {
     content.innerHTML = "<h2>No README found</h2>";
     return;
   }
 
   renderRightPanel(readmes);
-
-  // 自動載入第一個 README
   loadFile(readmes[0].path);
 }
 
 async function collectReadmes(eventName) {
   const result = [];
-
   const categories = await fetchDir(`CTF/${eventName}`);
 
   for (const cat of categories) {
@@ -39,15 +34,15 @@ async function collectReadmes(eventName) {
 
       const files = await fetchDir(chall.path);
 
-      const hasReadme = files.find(
+      const readme = files.find(
         f => f.type === "file" && f.name.toLowerCase() === "readme.md"
       );
 
-      if (hasReadme) {
+      if (readme) {
         result.push({
           category: cat.name.toLowerCase(),
           challenge: chall.name,
-          path: hasReadme.path
+          path: readme.path
         });
       }
     }
@@ -67,13 +62,20 @@ function renderRightPanel(readmes) {
   const toc = document.getElementById("toc");
   toc.innerHTML = "<h3>Challenges</h3>";
 
-  readmes.forEach(item => {
+  readmes.forEach((item, index) => {
     const div = document.createElement("div");
     div.className = "challenge-item";
-
     div.textContent = `${item.category} / ${item.challenge}`;
 
-    div.onclick = () => loadFile(item.path);
+    div.onclick = () => {
+      document.querySelectorAll(".challenge-item")
+        .forEach(el => el.classList.remove("active"));
+
+      div.classList.add("active");
+      loadFile(item.path);
+    };
+
+    if (index === 0) div.classList.add("active");
 
     toc.appendChild(div);
   });
@@ -87,6 +89,19 @@ async function loadFile(path) {
   );
 
   const text = await res.text();
-
   content.innerHTML = marked.parse(text);
+
+  fixImagePaths(path);
+}
+
+function fixImagePaths(path) {
+  const base = path.replace("README.md", "");
+  document.querySelectorAll("#content img").forEach(img => {
+    if (!img.src.startsWith("http")) {
+      img.src =
+        `https://raw.githubusercontent.com/${USER}/${REPO}/${BRANCH}/` +
+        base +
+        img.getAttribute("src");
+    }
+  });
 }

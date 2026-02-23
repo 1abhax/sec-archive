@@ -1,24 +1,25 @@
 // home.js
 
-function init() {
+async function init() {
   const timeline = document.getElementById("timeline");
 
-  const updates = [
-    {
-      tag: "#CTF",
-      title: "Initial setup",
-      date: "2026-02-23"
-    }
-  ];
+  const res = await fetch("./data/order_CTF.json");
+  const data = await res.json();
 
-  updates.forEach(item => {
+  data.ctf_order.forEach(name => {
     const div = document.createElement("div");
     div.className = "timeline-item";
+
     div.innerHTML = `
-      <div class="tag">${item.tag}</div>
-      <h3>${item.title}</h3>
-      <small>${item.date}</small>
+      <div class="tag">#CTF</div>
+      <h3>${name}</h3>
     `;
+
+    div.onclick = () => {
+      window.location.href =
+        `archive.html?major=CTF&event=${encodeURIComponent(name)}`;
+    };
+
     timeline.appendChild(div);
   });
 }

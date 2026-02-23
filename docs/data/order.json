@@ -1,0 +1,12 @@
+﻿{
+  "order": {
+    "writeups": [
+      "BITSCTF 2026",
+      "LACTF",
+      "ScarletCTF",
+      "PascalCTF 2026",
+      "niteCTF2025"
+    ],
+    "writeups/LACTF": ["Web", "Crypto", "Pwn", "Misc"]
+  }
+}

@@ -14,8 +14,8 @@
   --radius-sm: 14px;
 
   --topbar-h: 64px;
-  --sidebar-w: 320px;
-  --toc-w: 280px;
+  --sidebar-w: 340px;
+  --toc-w: 300px;
 
   --code-bg: #0b1220;
   --code-text: #e2e8f0;
@@ -109,7 +109,7 @@ body.dark #bgOverlay{ background: rgba(2,6,23,0.45); }
   gap: 8px;
   align-items:center;
   flex-wrap: wrap;
-  max-width: 55vw;
+  max-width: 60vw;
   justify-content: flex-end;
   color: rgba(255,255,255,0.85);
   font-size: 13px;
@@ -134,16 +134,19 @@ body.dark #bgOverlay{ background: rgba(2,6,23,0.45); }
   color: rgba(255,255,255,0.92);
   cursor: pointer;
   backdrop-filter: blur(10px);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
 }
 .icon-btn:hover{
   background: rgba(255,255,255,0.16);
   border-color: rgba(255,255,255,0.30);
 }
-.link-btn{ text-decoration:none; display:inline-flex; justify-content:center; align-items:center; }
+.link-btn{ text-decoration:none; }
 
 /* Shell */
 #shell{
-  padding: 26px 18px 48px;
+  padding: 22px 18px 48px;
 }
 
 /* Cards */
@@ -155,8 +158,8 @@ body.dark #bgOverlay{ background: rgba(2,6,23,0.45); }
   backdrop-filter: blur(16px);
 }
 
-/* Home view */
-.view{ max-width: 1200px; margin: 0 auto; }
+/* Home view (放大) */
+.view{ max-width: 1600px; margin: 0 auto; }
 .hidden{ display:none; }
 
 .hero{
@@ -164,7 +167,7 @@ body.dark #bgOverlay{ background: rgba(2,6,23,0.45); }
   margin-bottom: 16px;
 }
 .hero-title{
-  font-size: 28px;
+  font-size: 30px;
   font-weight: 900;
   letter-spacing: -0.4px;
 }
@@ -181,9 +184,10 @@ body.dark #bgOverlay{ background: rgba(2,6,23,0.45); }
 
 .grid{
   display:grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
+@media (max-width: 1200px){ .grid{ grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 980px){ .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 620px){ .grid{ grid-template-columns: 1fr; } }
 
@@ -381,7 +385,7 @@ body.dark #bgOverlay{ background: rgba(2,6,23,0.45); }
 }
 .btn:hover{ border-color: rgba(37,99,235,0.25); background: rgba(37,99,235,0.08); }
 
-/* TOC */
+/* TOC (無標題) */
 #toc{
   width: var(--toc-w);
   position: sticky;
@@ -390,21 +394,15 @@ body.dark #bgOverlay{ background: rgba(2,6,23,0.45); }
 #toc.hidden{ display:none; }
 
 .toc-card{
-  padding: 14px 14px;
+  padding: 12px 12px;
   max-height: calc(100vh - var(--topbar-h) - 28px);
   overflow:auto;
 }
-.toc-title{
-  font-weight: 900;
-  font-size: 12px;
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
 .toc-meta{
-  margin-top: 8px;
   font-size: 12px;
   color: var(--muted);
+  padding: 4px 6px 10px;
+  border-bottom: 1px solid var(--border);
 }
 .toc-body{
   margin-top: 10px;
@@ -431,7 +429,7 @@ body.dark #bgOverlay{ background: rgba(2,6,23,0.45); }
 }
 
 /* Markdown / Text rendering */
-.markdown-content{ max-width: 980px; }
+.markdown-content{ max-width: 1100px; }
 .markdown-content h1{ font-size: 30px; margin: 0 0 16px; letter-spacing: -0.4px; }
 .markdown-content h2{ font-size: 21px; margin-top: 34px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
 .markdown-content h3{ font-size: 17px; margin-top: 22px; }
@@ -498,6 +496,16 @@ pre code{
   font-size: 13px;
 }
 
+/* Image viewer */
+.img-view{
+  display:block;
+  max-width: 100%;
+  height: auto;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.55);
+}
+
 /* Toast */
 .toast{
   position: fixed;
@@ -517,7 +525,27 @@ pre code{
 }
 .toast.show{ opacity: 1; }
 
-@media (max-width: 1100px){
+/* Tooltip (自訂小 message) */
+.tooltip{
+  position: fixed;
+  left: 0;
+  top: 0;
+  max-width: 360px;
+  background: rgba(15,23,42,0.96);
+  color: rgba(255,255,255,0.95);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  z-index: 2000;
+  pointer-events: none;
+  box-shadow: 0 18px 60px rgba(0,0,0,0.35);
+}
+.tooltip.hidden{ display:none; }
+
+@media (max-width: 1200px){
   #toc{ display:none; }
 }
 @media (max-width: 860px){

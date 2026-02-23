@@ -7,58 +7,75 @@
 
   <link rel="stylesheet" href="css/style.css" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
 </head>
 
 <body>
-  <header id="topbar">
-    <button id="toggleSidebar" aria-label="Toggle sidebar" title="Toggle sidebar">☰</button>
+  <div id="bg"></div>
+  <div id="bgOverlay"></div>
 
-    <div class="brand">
+  <header id="topbar">
+    <div class="brand" id="homeBtn" title="Back to Home">
       <div class="logo">1abhax</div>
       <div class="subtitle">CTF Writeups Archive</div>
     </div>
 
     <div class="topbar-actions">
-      <div class="search-wrap">
-        <input id="searchBox" type="search" placeholder="Search folders..." autocomplete="off" />
-        <button id="clearSearch" class="icon-btn" title="Clear">✕</button>
-      </div>
+      <div id="crumbs" class="crumbs"></div>
 
       <button id="toggleTheme" class="icon-btn" title="Toggle theme" aria-label="Toggle theme">◐</button>
+      <button id="toggleToc" class="icon-btn" title="Toggle TOC" aria-label="Toggle TOC">TOC</button>
       <a id="repoLink" class="icon-btn link-btn" title="Open GitHub repo" target="_blank" rel="noreferrer">↗</a>
     </div>
   </header>
 
-  <div id="layout">
-    <aside id="sidebar" aria-label="Sidebar navigation">
-      <div class="sidebar-header">
-        <div class="sidebar-title">Browse</div>
-        <div id="sidebarHint" class="sidebar-hint">Loading…</div>
+  <main id="shell">
+    <!-- Home (no sidebar) -->
+    <section id="homeView" class="view">
+      <div class="card hero">
+        <div class="hero-title">Writeups</div>
+        <div class="hero-subtitle">選擇一個活動（CTF）進入分類與題目。</div>
+        <div class="hero-meta" id="homeMeta"></div>
       </div>
-      <div id="sidebarTree"></div>
-    </aside>
 
-    <main id="main-content">
-      <article id="content">
-        <div class="welcome">
-          <div class="welcome-title">CTF Writeups</div>
-          <div class="welcome-subtitle">從左側選單選擇一個題目（README.md）開始閱讀。</div>
-          <div class="welcome-tip">
-            Tips：可用上方 Search 快速過濾資料夾；右側會自動產生 TOC（標題目錄）。
+      <div class="grid" id="eventGrid"></div>
+    </section>
+
+    <!-- Event view (sidebar + content + optional toc) -->
+    <section id="eventView" class="view hidden">
+      <div id="layout">
+        <aside id="sidebar" aria-label="Event sidebar">
+          <div class="sidebar-head">
+            <div class="sidebar-title" id="sidebarTitle">Browse</div>
+
+            <div class="search-wrap">
+              <input id="searchBox" type="search" placeholder="Search..." autocomplete="off" />
+              <button id="clearSearch" class="mini-btn" title="Clear">✕</button>
+            </div>
           </div>
-        </div>
-      </article>
 
-      <aside id="toc" aria-label="Table of contents">
-        <div class="toc-head">
-          <div class="toc-title">On this page</div>
-          <div id="tocMeta" class="toc-meta"></div>
-        </div>
-        <nav id="tocBody"></nav>
-      </aside>
-    </main>
-  </div>
+          <div id="tree" class="tree"></div>
+        </aside>
+
+        <section id="contentWrap">
+          <article id="content" class="card content-card">
+            <div class="welcome">
+              <div class="welcome-title">選擇左側分類/檔案</div>
+              <div class="welcome-subtitle">支援 .md / .py / .txt / 無副檔名 / .pdf / .zip（無法顯示則提供下載）。</div>
+            </div>
+          </article>
+        </section>
+
+        <aside id="toc" aria-label="Table of contents">
+          <div class="toc-card card">
+            <div class="toc-title">On this page</div>
+            <div id="tocMeta" class="toc-meta"></div>
+            <nav id="tocBody" class="toc-body"></nav>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 

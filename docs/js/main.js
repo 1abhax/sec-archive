@@ -1,534 +1,526 @@
-﻿// =====================================
-// 1abhax CTF Writeups main.js (improved)
-// =====================================
+﻿:root{
+  --bg: #0b1220;
+  --bg2: #0b1220;
+  --surface: rgba(255,255,255,0.86);
+  --surface2: rgba(255,255,255,0.72);
+  --text: #0f172a;
+  --muted: #475569;
+  --border: rgba(15,23,42,0.12);
+  --accent: #2563eb;
 
-const CACHE = new Map();        // path -> GitHub contents API result
-const ELEM_CACHE = new Map();   // path -> rendered DOM nodes (for faster re-filter)
-let CFG = {};
-let ORDER = {};
+  --shadow: 0 18px 50px rgba(0,0,0,0.18);
+  --shadow2: 0 10px 26px rgba(0,0,0,0.12);
+  --radius: 22px;
+  --radius-sm: 14px;
 
-const state = {
-  currentFilePath: null,
-  isSidebarCollapsed: false,
-  searchQuery: "",
-  tocObserver: null,
-};
+  --topbar-h: 64px;
+  --sidebar-w: 320px;
+  --toc-w: 280px;
 
-window.addEventListener("load", init);
-
-async function init() {
-  bindTopbar();
-  restoreUIState();
-
-  await loadConfig();
-  await loadOrder();
-
-  // Repo link
-  const repoLink = document.getElementById("repoLink");
-  repoLink.href = `https://github.com/${CFG.user}/${CFG.repo}`;
-
-  // Sidebar tree
-  const sidebarTree = document.getElementById("sidebarTree");
-  sidebarTree.innerHTML = "";
-  setSidebarHint("Loading…");
-
-  await renderDirectory(CFG.content_dir, sidebarTree);
-
-  setSidebarHint("Ready");
-
-  // Router: open hash file if exists
-  await handleRouteFromHash();
-
-  window.addEventListener("hashchange", handleRouteFromHash);
+  --code-bg: #0b1220;
+  --code-text: #e2e8f0;
 }
 
-function bindTopbar() {
-  const toggleSidebarBtn = document.getElementById("toggleSidebar");
-  toggleSidebarBtn.addEventListener("click", () => {
-    document.body.classList.toggle("sidebar-collapsed");
-    state.isSidebarCollapsed = document.body.classList.contains("sidebar-collapsed");
-    localStorage.setItem("sidebar_collapsed", state.isSidebarCollapsed ? "1" : "0");
-  });
+body.dark{
+  --surface: rgba(15,23,42,0.84);
+  --surface2: rgba(15,23,42,0.70);
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --border: rgba(148,163,184,0.16);
+  --accent: #60a5fa;
 
-  const searchBox = document.getElementById("searchBox");
-  const clearSearch = document.getElementById("clearSearch");
+  --shadow: 0 18px 55px rgba(0,0,0,0.45);
+  --shadow2: 0 10px 28px rgba(0,0,0,0.35);
 
-  searchBox.addEventListener("input", () => {
-    state.searchQuery = (searchBox.value || "").trim().toLowerCase();
-    localStorage.setItem("sidebar_search", state.searchQuery);
-    applySidebarFilter(state.searchQuery);
-  });
-
-  clearSearch.addEventListener("click", () => {
-    searchBox.value = "";
-    state.searchQuery = "";
-    localStorage.setItem("sidebar_search", "");
-    applySidebarFilter("");
-    searchBox.focus();
-  });
-
-  const toggleTheme = document.getElementById("toggleTheme");
-  toggleTheme.addEventListener("click", () => {
-    const dark = !document.body.classList.contains("dark");
-    document.body.classList.toggle("dark", dark);
-    localStorage.setItem("theme", dark ? "dark" : "light");
-  });
+  --code-bg: #020617;
+  --code-text: #e2e8f0;
 }
 
-function restoreUIState() {
-  // Sidebar collapsed
-  const collapsed = localStorage.getItem("sidebar_collapsed") === "1";
-  document.body.classList.toggle("sidebar-collapsed", collapsed);
-  state.isSidebarCollapsed = collapsed;
-
-  // Theme
-  const theme = localStorage.getItem("theme") || "light";
-  document.body.classList.toggle("dark", theme === "dark");
-
-  // Search
-  const q = (localStorage.getItem("sidebar_search") || "").trim();
-  state.searchQuery = q.toLowerCase();
-  const searchBox = document.getElementById("searchBox");
-  searchBox.value = q;
+*{ box-sizing: border-box; }
+html{ scroll-behavior: smooth; }
+body{
+  margin:0;
+  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
 }
 
-function setSidebarHint(text) {
-  const hint = document.getElementById("sidebarHint");
-  if (hint) hint.textContent = text;
+#bg{
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(1200px 600px at 20% 10%, rgba(255,255,255,0.22), transparent 60%),
+              radial-gradient(900px 500px at 70% 20%, rgba(255,255,255,0.18), transparent 55%),
+              linear-gradient(180deg, var(--bg), var(--bg2));
+  background-size: cover;
+  background-position: center;
+  filter: saturate(1.08) contrast(1.06);
+  transform: scale(1.03);
+  z-index: -3;
 }
 
-function toast(msg) {
-  const el = document.getElementById("toast");
-  if (!el) return;
-  el.textContent = msg;
-  el.classList.add("show");
-  window.clearTimeout(el._t);
-  el._t = window.setTimeout(() => el.classList.remove("show"), 1400);
+#bgOverlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(2,6,23,0.22);
+  backdrop-filter: blur(10px);
+  z-index: -2;
+}
+body.dark #bgOverlay{ background: rgba(2,6,23,0.45); }
+
+/* Topbar */
+#topbar{
+  position: sticky;
+  top:0;
+  height: var(--topbar-h);
+  display:flex;
+  align-items:center;
+  padding: 0 18px;
+  z-index: 30;
 }
 
-// ------------------------------
-// Load config.json
-// ------------------------------
-async function loadConfig() {
-  const res = await fetch("data/config.json");
-  if (!res.ok) throw new Error(`Failed to load config.json: ${res.status}`);
-  CFG = await res.json();
+.brand{
+  display:flex;
+  align-items: baseline;
+  gap: 10px;
+  cursor: pointer;
+  user-select: none;
+}
+.logo{
+  font-weight: 900;
+  letter-spacing: 0.2px;
+  font-size: 18px;
+  color: white;
+}
+.subtitle{
+  color: rgba(255,255,255,0.80);
+  font-size: 13px;
 }
 
-// ------------------------------
-// Load order.json (optional)
-// ------------------------------
-async function loadOrder() {
-  try {
-    const res = await fetch("data/order.json");
-    ORDER = await res.json();
-  } catch {
-    ORDER = {};
-  }
+.topbar-actions{
+  margin-left: auto;
+  display:flex;
+  align-items:center;
+  gap:10px;
 }
 
-// ------------------------------
-// GitHub API helpers
-// ------------------------------
-function githubContentsUrl(path) {
-  return `https://api.github.com/repos/${CFG.user}/${CFG.repo}/contents/${path}?ref=${CFG.branch}`;
+.crumbs{
+  display:flex;
+  gap: 8px;
+  align-items:center;
+  flex-wrap: wrap;
+  max-width: 55vw;
+  justify-content: flex-end;
+  color: rgba(255,255,255,0.85);
+  font-size: 13px;
+}
+.crumbs .sep{ opacity: 0.55; }
+.crumbs a{
+  color: rgba(255,255,255,0.92);
+  text-decoration: none;
+  border-bottom: 1px solid rgba(255,255,255,0.18);
+}
+.crumbs a:hover{
+  border-bottom-color: rgba(255,255,255,0.45);
 }
 
-function rawUrl(path) {
-  const encoded = path.split("/").map(encodeURIComponent).join("/");
-  return `https://raw.githubusercontent.com/${CFG.user}/${CFG.repo}/${CFG.branch}/${encoded}`;
+.icon-btn{
+  height: 38px;
+  min-width: 42px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.92);
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+}
+.icon-btn:hover{
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,255,255,0.30);
+}
+.link-btn{ text-decoration:none; display:inline-flex; justify-content:center; align-items:center; }
+
+/* Shell */
+#shell{
+  padding: 26px 18px 48px;
 }
 
-// ------------------------------
-// Sorting logic (supports order.json)
-// ------------------------------
-function sortItems(path, items) {
-  const list = ORDER.order?.[path] || [];
-  const map = new Map();
-  list.forEach((name, i) => map.set(name, i));
-
-  return items.slice().sort((a, b) => {
-    if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
-
-    const ia = map.has(a.name) ? map.get(a.name) : 9999;
-    const ib = map.has(b.name) ? map.get(b.name) : 9999;
-    if (ia !== ib) return ia - ib;
-
-    return a.name.localeCompare(b.name);
-  });
+/* Cards */
+.card{
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow2);
+  backdrop-filter: blur(16px);
 }
 
-// ------------------------------
-// Render sidebar directory tree
-// ------------------------------
-async function fetchDirectory(path) {
-  if (CACHE.has(path)) return CACHE.get(path);
+/* Home view */
+.view{ max-width: 1200px; margin: 0 auto; }
+.hidden{ display:none; }
 
-  const res = await fetch(githubContentsUrl(path), { cache: "force-cache" });
-  if (!res.ok) {
-    throw new Error(`Unable to read dir "${path}": HTTP ${res.status}`);
-  }
-
-  const items = await res.json();
-  CACHE.set(path, items);
-  return items;
+.hero{
+  padding: 22px 22px;
+  margin-bottom: 16px;
+}
+.hero-title{
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: -0.4px;
+}
+.hero-subtitle{
+  margin-top: 10px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.hero-meta{
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
-async function renderDirectory(path, container) {
-  container.dataset.path = path;
+.grid{
+  display:grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+@media (max-width: 980px){ .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px){ .grid{ grid-template-columns: 1fr; } }
 
-  // If we already rendered nodes once, reuse them.
-  if (ELEM_CACHE.has(path)) {
-    container.innerHTML = "";
-    container.appendChild(ELEM_CACHE.get(path).cloneNode(true));
-    applySidebarFilter(state.searchQuery);
-    return;
-  }
-
-  const wrap = document.createElement("div");
-
-  let items;
-  try {
-    items = await fetchDirectory(path);
-  } catch (e) {
-    showError(String(e.message || e));
-    setSidebarHint("Error");
-    return;
-  }
-
-  const sorted = sortItems(path, items);
-
-  for (const item of sorted) {
-    if (item.type === "dir") {
-      const folder = document.createElement("div");
-      folder.className = "folder";
-      folder.dataset.name = item.name.toLowerCase();
-
-      const left = document.createElement("div");
-      left.className = "name";
-      left.textContent = `📁 ${item.name}`;
-
-      const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = "dir";
-
-      folder.appendChild(left);
-      folder.appendChild(badge);
-
-      const sub = document.createElement("div");
-      sub.className = "tree-indent";
-      sub.dataset.path = item.path;
-
-      folder.addEventListener("click", async () => {
-        const isOpen = sub.style.display === "block";
-        sub.style.display = isOpen ? "none" : "block";
-
-        if (!isOpen && sub.childNodes.length === 0) {
-          await renderDirectory(item.path, sub);
-        }
-
-        applySidebarFilter(state.searchQuery);
-      });
-
-      wrap.appendChild(folder);
-      wrap.appendChild(sub);
-      continue;
-    }
-
-    // Only show README.md
-    if (item.type === "file" && item.name.toLowerCase() === "readme.md") {
-      const file = document.createElement("div");
-      file.className = "file";
-      file.dataset.path = item.path;
-      file.dataset.name = item.path.toLowerCase();
-
-      const left = document.createElement("div");
-      left.className = "name";
-      left.textContent = `📄 README`;
-
-      const badge = document.createElement("span");
-      badge.className = "badge";
-      badge.textContent = "md";
-
-      file.appendChild(left);
-      file.appendChild(badge);
-
-      file.addEventListener("click", async (ev) => {
-        ev.stopPropagation();
-        await openFile(item.path, { pushHash: true });
-        setActiveFile(item.path);
-      });
-
-      wrap.appendChild(file);
-    }
-  }
-
-  container.innerHTML = "";
-  container.appendChild(wrap);
-
-  // Cache rendered DOM
-  ELEM_CACHE.set(path, wrap.cloneNode(true));
-
-  // Apply filter now (for restored search query)
-  applySidebarFilter(state.searchQuery);
+.tile{
+  padding: 18px 18px;
+  cursor:pointer;
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+  position: relative;
+  overflow: hidden;
+}
+.tile:hover{
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+.tile-title{
+  font-weight: 900;
+  font-size: 18px;
+}
+.tile-sub{
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.65;
+}
+.tile-pill{
+  position:absolute;
+  top: 14px;
+  right: 14px;
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
 }
 
-function applySidebarFilter(query) {
-  const q = (query || "").trim().toLowerCase();
-
-  const sidebar = document.getElementById("sidebarTree");
-  const nodes = sidebar.querySelectorAll(".folder, .file, .tree-indent");
-
-  if (!q) {
-    // Show folders/files, keep subtrees as user toggled
-    nodes.forEach(n => {
-      if (n.classList.contains("folder") || n.classList.contains("file")) {
-        n.style.display = "flex";
-      }
-      if (n.classList.contains("tree-indent")) {
-        // don't force open/close; only hide if empty
-        if (n.childElementCount === 0) n.style.display = n.style.display || "none";
-      }
-    });
-    return;
-  }
-
-  // Filtering: show matching folders/files and their ancestors
-  // Step 1: hide everything
-  nodes.forEach(n => {
-    if (n.classList.contains("folder") || n.classList.contains("file")) {
-      n.style.display = "none";
-    }
-    if (n.classList.contains("tree-indent")) {
-      n.style.display = "none";
-    }
-  });
-
-  // Step 2: show matches
-  const matchNodes = [];
-  sidebar.querySelectorAll(".folder, .file").forEach(n => {
-    const name = n.dataset.name || "";
-    if (name.includes(q)) matchNodes.push(n);
-  });
-
-  // Step 3: reveal matches + parents and open their subtrees
-  for (const n of matchNodes) {
-    n.style.display = "flex";
-
-    // If it's a file, reveal its parent subtree(s)
-    let p = n.parentElement;
-    while (p && p !== sidebar) {
-      if (p.classList.contains("tree-indent")) {
-        p.style.display = "block";
-      }
-      p = p.parentElement;
-    }
-
-    // If it's a folder, reveal its subtree too
-    if (n.classList.contains("folder")) {
-      const sub = n.nextElementSibling;
-      if (sub && sub.classList.contains("tree-indent")) {
-        sub.style.display = "block";
-      }
-    }
-  }
+/* Event layout */
+#layout{
+  display:flex;
+  gap: 14px;
+  align-items: flex-start;
 }
 
-// ------------------------------
-// File open / markdown render
-// ------------------------------
-async function openFile(path, opts = { pushHash: false }) {
-  state.currentFilePath = path;
-
-  if (opts.pushHash) {
-    // Route: encode path in hash
-    location.hash = `#${encodeURIComponent(path)}`;
-  }
-
-  const content = document.getElementById("content");
-  content.innerHTML = `<div class="welcome"><div class="welcome-title">Loading…</div><div class="welcome-subtitle">${escapeHtml(path)}</div></div>`;
-
-  let md;
-  try {
-    const res = await fetch(rawUrl(path), { cache: "no-cache" });
-    if (!res.ok) throw new Error(`Unable to load: HTTP ${res.status}`);
-    md = await res.text();
-  } catch (e) {
-    showError(String(e.message || e));
-    return;
-  }
-
-  // marked config (safe-ish defaults; keep simple)
-  marked.setOptions({
-    gfm: true,
-    breaks: false,
-  });
-
-  const html = marked.parse(md);
-  content.innerHTML = `<div class="markdown-content">${html}</div>`;
-
-  // Build TOC + headings ids
-  buildTOC();
-
-  // Update toc meta
-  const tocMeta = document.getElementById("tocMeta");
-  tocMeta.textContent = path.replace(/^.*?writeups\//, "writeups/");
-
-  // Small UX
-  toast("Loaded");
+#sidebar{
+  width: var(--sidebar-w);
+  position: sticky;
+  top: calc(var(--topbar-h) + 14px);
+  max-height: calc(100vh - var(--topbar-h) - 28px);
+  overflow: auto;
+  padding: 14px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow2);
+  backdrop-filter: blur(16px);
 }
 
-function escapeHtml(s) {
-  return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+.sidebar-head{
+  display:flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.sidebar-title{
+  font-weight: 900;
+  font-size: 14px;
 }
 
-// ------------------------------
-// Active highlight in sidebar
-// ------------------------------
-function setActiveFile(path) {
-  document.querySelectorAll(".file").forEach(el => el.classList.remove("active"));
-  const target = document.querySelector(`.file[data-path="${cssEscape(path)}"]`);
-  if (target) target.classList.add("active");
+.search-wrap{
+  display:flex;
+  align-items:center;
+  gap: 8px;
+  padding: 10px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+}
+#searchBox{
+  width: 100%;
+  border:none;
+  outline:none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+}
+.mini-btn{
+  border:none;
+  cursor:pointer;
+  height: 26px;
+  width: 26px;
+  border-radius: 8px;
+  background: rgba(37,99,235,0.10);
+  color: var(--accent);
+}
+.mini-btn:hover{ background: rgba(37,99,235,0.16); }
+
+.tree{ padding: 4px 2px 6px; }
+
+.node{
+  display:flex;
+  align-items:center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 10px;
+  border-radius: 14px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  user-select:none;
+  transition: 0.14s ease;
+}
+.node:hover{
+  background: rgba(37,99,235,0.08);
+  border-color: rgba(37,99,235,0.18);
+}
+.node.active{
+  background: rgba(37,99,235,0.14);
+  border-color: rgba(37,99,235,0.28);
+}
+.node .name{
+  overflow:hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+}
+.badge{
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--surface2);
 }
 
-// Minimal CSS.escape fallback
-function cssEscape(s) {
-  if (window.CSS && CSS.escape) return CSS.escape(s);
-  return String(s).replaceAll('"', '\\"');
+.children{
+  margin-left: 12px;
+  padding-left: 10px;
+  border-left: 1px dashed rgba(148,163,184,0.32);
+  display:none;
 }
 
-// ------------------------------
-// TOC generation + scroll spy
-// ------------------------------
-function buildTOC() {
-  const tocBody = document.getElementById("tocBody");
-  tocBody.innerHTML = "";
-
-  // Disconnect previous observer
-  if (state.tocObserver) {
-    state.tocObserver.disconnect();
-    state.tocObserver = null;
-  }
-
-  const headings = document.querySelectorAll("#content h2, #content h3");
-  if (!headings.length) {
-    tocBody.innerHTML = `<div style="color: var(--muted); font-size: 13px; padding: 8px 12px;">No headings</div>`;
-    return;
-  }
-
-  const links = [];
-  headings.forEach(h => {
-    const id = makeHeadingId(h.innerText);
-    h.id = id;
-
-    const a = document.createElement("a");
-    a.href = `#${encodeURIComponent(state.currentFilePath || "")}:${id}`;
-    a.textContent = h.innerText;
-
-    // indent h3
-    if (h.tagName.toLowerCase() === "h3") {
-      a.style.paddingLeft = "18px";
-    }
-
-    a.addEventListener("click", (ev) => {
-      ev.preventDefault();
-      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      setTOCActive(id);
-    });
-
-    tocBody.appendChild(a);
-    links.push({ id, a });
-  });
-
-  // Scroll spy
-  const obs = new IntersectionObserver((entries) => {
-    // Choose the top-most visible heading
-    const visible = entries.filter(e => e.isIntersecting)
-      .sort((a, b) => (a.boundingClientRect.top - b.boundingClientRect.top));
-
-    if (visible.length) {
-      setTOCActive(visible[0].target.id);
-    }
-  }, {
-    root: null,
-    rootMargin: "-20% 0px -70% 0px",
-    threshold: [0, 1.0]
-  });
-
-  headings.forEach(h => obs.observe(h));
-  state.tocObserver = obs;
-
-  // Default active
-  setTOCActive(headings[0].id);
-
-  function setTOCActive(id) {
-    links.forEach(x => x.a.classList.toggle("active", x.id === id));
-  }
+#contentWrap{
+  flex: 1;
+  min-width: 0;
+}
+.content-card{
+  padding: 22px 22px;
+  min-height: calc(100vh - var(--topbar-h) - 74px);
 }
 
-function makeHeadingId(text) {
-  return String(text)
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^\w\-]/g, "")
-    .slice(0, 80) || "section";
+.welcome-title{
+  font-weight: 900;
+  font-size: 20px;
+}
+.welcome-subtitle{
+  margin-top: 10px;
+  color: var(--muted);
+  line-height: 1.75;
+  font-size: 13px;
 }
 
-// ------------------------------
-// Router: #<filePath> or #<filePath>:<headingId>
-// ------------------------------
-async function handleRouteFromHash() {
-  const h = location.hash || "";
-  if (!h || h === "#") return;
+.file-head{
+  display:flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+.file-head .title{
+  font-weight: 900;
+  font-size: 16px;
+}
+.file-head .meta{
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+.file-actions{
+  display:flex;
+  gap: 10px;
+  align-items:center;
+}
+.btn{
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 10px 12px;
+  font-size: 13px;
+  cursor:pointer;
+  text-decoration:none;
+}
+.btn:hover{ border-color: rgba(37,99,235,0.25); background: rgba(37,99,235,0.08); }
 
-  // Two formats:
-  // 1) #<encodeURIComponent(filePath)>
-  // 2) #<encodeURIComponent(filePath)>:<headingId>
-  const raw = h.slice(1);
-  const parts = raw.split(":");
-  const filePart = parts[0] || "";
-  const headingId = parts[1] || "";
+/* TOC */
+#toc{
+  width: var(--toc-w);
+  position: sticky;
+  top: calc(var(--topbar-h) + 14px);
+}
+#toc.hidden{ display:none; }
 
-  let filePath;
-  try {
-    filePath = decodeURIComponent(filePart);
-  } catch {
-    return;
-  }
-  if (!filePath) return;
-
-  if (filePath !== state.currentFilePath) {
-    await openFile(filePath, { pushHash: false });
-    setActiveFile(filePath);
-  }
-
-  if (headingId) {
-    // Wait for render
-    requestAnimationFrame(() => {
-      const el = document.getElementById(headingId);
-      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-  }
+.toc-card{
+  padding: 14px 14px;
+  max-height: calc(100vh - var(--topbar-h) - 28px);
+  overflow:auto;
+}
+.toc-title{
+  font-weight: 900;
+  font-size: 12px;
+  letter-spacing: 0.2px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.toc-meta{
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.toc-body{
+  margin-top: 10px;
+}
+.toc-body a{
+  display:block;
+  padding: 8px 10px;
+  border-radius: 12px;
+  color: var(--muted);
+  text-decoration:none;
+  border: 1px solid transparent;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.toc-body a:hover{
+  color: var(--text);
+  background: rgba(37,99,235,0.08);
+  border-color: rgba(37,99,235,0.18);
+}
+.toc-body a.active{
+  color: var(--text);
+  background: rgba(37,99,235,0.14);
+  border-color: rgba(37,99,235,0.28);
 }
 
-// ------------------------------
-// Error rendering
-// ------------------------------
-function showError(msg) {
-  const content = document.getElementById("content");
-  content.innerHTML = `
-    <div class="welcome">
-      <div class="welcome-title">Error</div>
-      <div class="welcome-subtitle" style="color: var(--muted); line-height: 1.8;">
-        ${escapeHtml(msg)}
-      </div>
-    </div>
-  `;
-  toast("Error");
+/* Markdown / Text rendering */
+.markdown-content{ max-width: 980px; }
+.markdown-content h1{ font-size: 30px; margin: 0 0 16px; letter-spacing: -0.4px; }
+.markdown-content h2{ font-size: 21px; margin-top: 34px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.markdown-content h3{ font-size: 17px; margin-top: 22px; }
+.markdown-content p{ line-height: 1.85; margin: 14px 0; }
+.markdown-content a{ color: var(--accent); text-decoration:none; border-bottom: 1px solid rgba(37,99,235,0.25); }
+.markdown-content a:hover{ border-bottom-color: rgba(37,99,235,0.55); }
+.markdown-content blockquote{
+  margin: 18px 0;
+  padding: 12px 14px;
+  border-left: 4px solid rgba(37,99,235,0.35);
+  background: rgba(37,99,235,0.06);
+  border-radius: 14px;
+}
+
+pre{
+  position: relative;
+  background: var(--code-bg);
+  color: var(--code-text);
+  padding: 16px;
+  border-radius: 16px;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.65;
+  border: 1px solid rgba(148,163,184,0.18);
+  margin: 14px 0;
+}
+code{
+  background: rgba(37,99,235,0.10);
+  color: var(--accent);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+pre code{
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Copy button */
+.copy-btn{
+  position:absolute;
+  top: 10px;
+  right: 10px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.92);
+  cursor:pointer;
+  font-size: 12px;
+  backdrop-filter: blur(10px);
+}
+.copy-btn:hover{
+  background: rgba(255,255,255,0.16);
+  border-color: rgba(255,255,255,0.28);
+}
+
+/* Text viewer */
+.text-view{
+  white-space: pre;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 13px;
+}
+
+/* Toast */
+.toast{
+  position: fixed;
+  bottom: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15,23,42,0.86);
+  color: rgba(255,255,255,0.94);
+  border: 1px solid rgba(255,255,255,0.18);
+  padding: 10px 14px;
+  border-radius: 999px;
+  box-shadow: 0 14px 40px rgba(0,0,0,0.28);
+  opacity: 0;
+  pointer-events: none;
+  transition: 0.16s ease;
+  z-index: 1000;
+}
+.toast.show{ opacity: 1; }
+
+@media (max-width: 1100px){
+  #toc{ display:none; }
+}
+@media (max-width: 860px){
+  #layout{ flex-direction: column; }
+  #sidebar{ width: 100%; position: relative; top: 0; max-height: none; }
 }

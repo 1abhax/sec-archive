@@ -2,5 +2,6 @@
   "user": "1abhax",
   "repo": "CTF",
   "branch": "main",
-  "content_dir": "writeups"
+  "content_dir": "writeups",
+  "backgrounds": ["assets/bg/bg1.jpg"]
 }

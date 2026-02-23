@@ -1,526 +1,910 @@
-﻿:root{
-  --bg: #0b1220;
-  --bg2: #0b1220;
-  --surface: rgba(255,255,255,0.86);
-  --surface2: rgba(255,255,255,0.72);
-  --text: #0f172a;
-  --muted: #475569;
-  --border: rgba(15,23,42,0.12);
-  --accent: #2563eb;
+﻿// ==========================================
+// CTF Writeups Site (Level 2)
+// Home: event cards (no sidebar)
+// Event: sidebar tree for current event + content + optional TOC
+// Files: md/text/pdf/embed-if-possible/zip-download
+// ==========================================
 
-  --shadow: 0 18px 50px rgba(0,0,0,0.18);
-  --shadow2: 0 10px 26px rgba(0,0,0,0.12);
-  --radius: 22px;
-  --radius-sm: 14px;
+let CFG = {};
+let ORDER = {};
 
-  --topbar-h: 64px;
-  --sidebar-w: 320px;
-  --toc-w: 280px;
+const CACHE_DIR = new Map(); // path -> GitHub contents list
+const CACHE_ITEM = new Map(); // path -> GitHub content item (file metadata)
+const state = {
+  view: "home",            // "home" | "event"
+  eventName: null,         // e.g. "LACTF"
+  currentPath: null,       // current folder path
+  currentFilePath: null,   // opened file path
+  tocEnabled: true,
+  search: "",
+};
 
-  --code-bg: #0b1220;
-  --code-text: #e2e8f0;
-}
+window.addEventListener("load", init);
 
-body.dark{
-  --surface: rgba(15,23,42,0.84);
-  --surface2: rgba(15,23,42,0.70);
-  --text: #e2e8f0;
-  --muted: #94a3b8;
-  --border: rgba(148,163,184,0.16);
-  --accent: #60a5fa;
+async function init() {
+  bindUI();
+  restorePrefs();
 
-  --shadow: 0 18px 55px rgba(0,0,0,0.45);
-  --shadow2: 0 10px 28px rgba(0,0,0,0.35);
+  await loadConfig();
+  await loadOrder();
 
-  --code-bg: #020617;
-  --code-text: #e2e8f0;
-}
+  // repo link
+  document.getElementById("repoLink").href = `https://github.com/${CFG.user}/${CFG.repo}`;
 
-*{ box-sizing: border-box; }
-html{ scroll-behavior: smooth; }
-body{
-  margin:0;
-  font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  color: var(--text);
-  min-height: 100vh;
-  overflow-x: hidden;
+  // background
+  applyBackground();
+
+  // load home
+  await renderHome();
+
+  // route
+  await handleRouteFromHash();
+  window.addEventListener("hashchange", handleRouteFromHash);
 }
 
-#bg{
-  position: fixed;
-  inset: 0;
-  background: radial-gradient(1200px 600px at 20% 10%, rgba(255,255,255,0.22), transparent 60%),
-              radial-gradient(900px 500px at 70% 20%, rgba(255,255,255,0.18), transparent 55%),
-              linear-gradient(180deg, var(--bg), var(--bg2));
-  background-size: cover;
-  background-position: center;
-  filter: saturate(1.08) contrast(1.06);
-  transform: scale(1.03);
-  z-index: -3;
+function bindUI() {
+  document.getElementById("homeBtn").addEventListener("click", () => goHome());
+
+  document.getElementById("toggleTheme").addEventListener("click", () => {
+    const dark = !document.body.classList.contains("dark");
+    document.body.classList.toggle("dark", dark);
+    localStorage.setItem("theme", dark ? "dark" : "light");
+  });
+
+  document.getElementById("toggleToc").addEventListener("click", () => {
+    state.tocEnabled = !state.tocEnabled;
+    localStorage.setItem("toc_enabled", state.tocEnabled ? "1" : "0");
+    updateTocVisibility();
+  });
+
+  const searchBox = document.getElementById("searchBox");
+  const clearSearch = document.getElementById("clearSearch");
+  searchBox.addEventListener("input", () => {
+    state.search = (searchBox.value || "").trim().toLowerCase();
+    filterTree(state.search);
+  });
+  clearSearch.addEventListener("click", () => {
+    searchBox.value = "";
+    state.search = "";
+    filterTree("");
+    searchBox.focus();
+  });
 }
 
-#bgOverlay{
-  position: fixed;
-  inset: 0;
-  background: rgba(2,6,23,0.22);
-  backdrop-filter: blur(10px);
-  z-index: -2;
-}
-body.dark #bgOverlay{ background: rgba(2,6,23,0.45); }
+function restorePrefs() {
+  const theme = localStorage.getItem("theme") || "light";
+  document.body.classList.toggle("dark", theme === "dark");
 
-/* Topbar */
-#topbar{
-  position: sticky;
-  top:0;
-  height: var(--topbar-h);
-  display:flex;
-  align-items:center;
-  padding: 0 18px;
-  z-index: 30;
+  state.tocEnabled = (localStorage.getItem("toc_enabled") ?? "1") === "1";
+  updateTocVisibility();
 }
 
-.brand{
-  display:flex;
-  align-items: baseline;
-  gap: 10px;
-  cursor: pointer;
-  user-select: none;
-}
-.logo{
-  font-weight: 900;
-  letter-spacing: 0.2px;
-  font-size: 18px;
-  color: white;
-}
-.subtitle{
-  color: rgba(255,255,255,0.80);
-  font-size: 13px;
+function updateTocVisibility() {
+  const toc = document.getElementById("toc");
+  // hide only when in event view; home doesn't show toc anyway
+  toc.classList.toggle("hidden", !state.tocEnabled || state.view !== "event");
 }
 
-.topbar-actions{
-  margin-left: auto;
-  display:flex;
-  align-items:center;
-  gap:10px;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  window.clearTimeout(el._t);
+  el._t = window.setTimeout(() => el.classList.remove("show"), 1200);
 }
 
-.crumbs{
-  display:flex;
-  gap: 8px;
-  align-items:center;
-  flex-wrap: wrap;
-  max-width: 55vw;
-  justify-content: flex-end;
-  color: rgba(255,255,255,0.85);
-  font-size: 13px;
-}
-.crumbs .sep{ opacity: 0.55; }
-.crumbs a{
-  color: rgba(255,255,255,0.92);
-  text-decoration: none;
-  border-bottom: 1px solid rgba(255,255,255,0.18);
-}
-.crumbs a:hover{
-  border-bottom-color: rgba(255,255,255,0.45);
+async function loadConfig() {
+  const res = await fetch("data/config.json");
+  if (!res.ok) throw new Error(`Failed to load config.json: ${res.status}`);
+  CFG = await res.json();
 }
 
-.icon-btn{
-  height: 38px;
-  min-width: 42px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.22);
-  background: rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.92);
-  cursor: pointer;
-  backdrop-filter: blur(10px);
-}
-.icon-btn:hover{
-  background: rgba(255,255,255,0.16);
-  border-color: rgba(255,255,255,0.30);
-}
-.link-btn{ text-decoration:none; display:inline-flex; justify-content:center; align-items:center; }
-
-/* Shell */
-#shell{
-  padding: 26px 18px 48px;
+async function loadOrder() {
+  try {
+    const res = await fetch("data/order.json");
+    ORDER = await res.json();
+  } catch {
+    ORDER = {};
+  }
 }
 
-/* Cards */
-.card{
-  border-radius: var(--radius);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow2);
-  backdrop-filter: blur(16px);
+function applyBackground() {
+  const bg = document.getElementById("bg");
+  const list = Array.isArray(CFG.backgrounds) ? CFG.backgrounds : [];
+  if (!list.length) return; // keep default gradient
+
+  const pick = list[Math.floor(Math.random() * list.length)];
+  bg.style.backgroundImage = `url("${pick}")`;
+  bg.style.backgroundSize = "cover";
+  bg.style.backgroundPosition = "center";
 }
 
-/* Home view */
-.view{ max-width: 1200px; margin: 0 auto; }
-.hidden{ display:none; }
-
-.hero{
-  padding: 22px 22px;
-  margin-bottom: 16px;
-}
-.hero-title{
-  font-size: 28px;
-  font-weight: 900;
-  letter-spacing: -0.4px;
-}
-.hero-subtitle{
-  margin-top: 10px;
-  color: var(--muted);
-  line-height: 1.7;
-}
-.hero-meta{
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 13px;
+function setView(view) {
+  state.view = view;
+  document.getElementById("homeView").classList.toggle("hidden", view !== "home");
+  document.getElementById("eventView").classList.toggle("hidden", view !== "event");
+  updateTocVisibility();
 }
 
-.grid{
-  display:grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-}
-@media (max-width: 980px){ .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 620px){ .grid{ grid-template-columns: 1fr; } }
+function setCrumbs(parts) {
+  const el = document.getElementById("crumbs");
+  el.innerHTML = "";
+  if (!parts || !parts.length) return;
 
-.tile{
-  padding: 18px 18px;
-  cursor:pointer;
-  transition: transform 0.16s ease, box-shadow 0.16s ease;
-  position: relative;
-  overflow: hidden;
-}
-.tile:hover{
-  transform: translateY(-2px);
-  box-shadow: var(--shadow);
-}
-.tile-title{
-  font-weight: 900;
-  font-size: 18px;
-}
-.tile-sub{
-  margin-top: 10px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.65;
-}
-.tile-pill{
-  position:absolute;
-  top: 14px;
-  right: 14px;
-  font-size: 12px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  color: var(--muted);
+  parts.forEach((p, idx) => {
+    if (idx > 0) {
+      const sep = document.createElement("span");
+      sep.className = "sep";
+      sep.textContent = "/";
+      el.appendChild(sep);
+    }
+    if (p.href) {
+      const a = document.createElement("a");
+      a.href = p.href;
+      a.textContent = p.text;
+      el.appendChild(a);
+    } else {
+      const s = document.createElement("span");
+      s.textContent = p.text;
+      el.appendChild(s);
+    }
+  });
 }
 
-/* Event layout */
-#layout{
-  display:flex;
-  gap: 14px;
-  align-items: flex-start;
+function goHome() {
+  location.hash = "#/";
 }
 
-#sidebar{
-  width: var(--sidebar-w);
-  position: sticky;
-  top: calc(var(--topbar-h) + 14px);
-  max-height: calc(100vh - var(--topbar-h) - 28px);
-  overflow: auto;
-  padding: 14px;
-  border-radius: var(--radius);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  box-shadow: var(--shadow2);
-  backdrop-filter: blur(16px);
+function goEvent(eventName) {
+  location.hash = `#/event/${encodeURIComponent(eventName)}`;
 }
 
-.sidebar-head{
-  display:flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 10px;
-}
-.sidebar-title{
-  font-weight: 900;
-  font-size: 14px;
+function goPath(eventName, relPath) {
+  // relPath is under content_dir
+  location.hash = `#/event/${encodeURIComponent(eventName)}/path/${encodeURIComponent(relPath)}`;
 }
 
-.search-wrap{
-  display:flex;
-  align-items:center;
-  gap: 8px;
-  padding: 10px 10px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: var(--surface2);
-}
-#searchBox{
-  width: 100%;
-  border:none;
-  outline:none;
-  background: transparent;
-  color: var(--text);
-  font-size: 13px;
-}
-.mini-btn{
-  border:none;
-  cursor:pointer;
-  height: 26px;
-  width: 26px;
-  border-radius: 8px;
-  background: rgba(37,99,235,0.10);
-  color: var(--accent);
-}
-.mini-btn:hover{ background: rgba(37,99,235,0.16); }
-
-.tree{ padding: 4px 2px 6px; }
-
-.node{
-  display:flex;
-  align-items:center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 10px;
-  border-radius: 14px;
-  cursor: pointer;
-  border: 1px solid transparent;
-  user-select:none;
-  transition: 0.14s ease;
-}
-.node:hover{
-  background: rgba(37,99,235,0.08);
-  border-color: rgba(37,99,235,0.18);
-}
-.node.active{
-  background: rgba(37,99,235,0.14);
-  border-color: rgba(37,99,235,0.28);
-}
-.node .name{
-  overflow:hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 13px;
-}
-.badge{
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  color: var(--muted);
-  background: var(--surface2);
+function goFile(eventName, filePath) {
+  location.hash = `#/event/${encodeURIComponent(eventName)}/file/${encodeURIComponent(filePath)}`;
 }
 
-.children{
-  margin-left: 12px;
-  padding-left: 10px;
-  border-left: 1px dashed rgba(148,163,184,0.32);
-  display:none;
+async function handleRouteFromHash() {
+  const h = location.hash || "#/";
+  const parts = h.replace(/^#\/?/, "").split("/").filter(Boolean);
+
+  if (parts.length === 0) {
+    setView("home");
+    setCrumbs([]);
+    return;
+  }
+
+  if (parts[0] !== "event") {
+    setView("home");
+    setCrumbs([]);
+    return;
+  }
+
+  const eventName = decodeURIComponent(parts[1] || "");
+  if (!eventName) {
+    setView("home");
+    setCrumbs([]);
+    return;
+  }
+
+  state.eventName = eventName;
+  setView("event");
+  updateTocVisibility();
+
+  // Always load sidebar root for this event
+  // event root path = `${content_dir}/${eventName}`
+  const eventRoot = `${CFG.content_dir}/${eventName}`;
+
+  document.getElementById("sidebarTitle").textContent = eventName;
+  await renderEventSidebar(eventRoot);
+
+  // default crumbs for event
+  setCrumbs([
+    { text: "Home", href: "#/" },
+    { text: eventName, href: `#/event/${encodeURIComponent(eventName)}` }
+  ]);
+
+  // route to file/path if present
+  if (parts[2] === "file") {
+    const filePath = decodeURIComponent(parts.slice(3).join("/") || "");
+    if (filePath) {
+      await openFile(filePath);
+      markActiveNode(filePath);
+      return;
+    }
+  }
+
+  if (parts[2] === "path") {
+    const relPath = decodeURIComponent(parts.slice(3).join("/") || "");
+    const fullPath = relPath ? `${CFG.content_dir}/${relPath}` : eventRoot;
+    await openFolderInContent(fullPath);
+    markActiveNode(fullPath);
+    return;
+  }
+
+  // If just event, show a landing in content
+  showEventLanding(eventName);
 }
 
-#contentWrap{
-  flex: 1;
-  min-width: 0;
-}
-.content-card{
-  padding: 22px 22px;
-  min-height: calc(100vh - var(--topbar-h) - 74px);
+async function renderHome() {
+  setView("home");
+  setCrumbs([]);
+
+  const meta = document.getElementById("homeMeta");
+  meta.textContent = `Repo: ${CFG.user}/${CFG.repo} · branch: ${CFG.branch} · root: ${CFG.content_dir}`;
+
+  const grid = document.getElementById("eventGrid");
+  grid.innerHTML = "";
+
+  const items = await fetchDir(CFG.content_dir);
+  const dirs = sortItems(CFG.content_dir, items).filter(x => x.type === "dir");
+
+  dirs.forEach(dir => {
+    const tile = document.createElement("div");
+    tile.className = "card tile";
+    tile.innerHTML = `
+      <div class="tile-pill">event</div>
+      <div class="tile-title">${escapeHtml(dir.name)}</div>
+      <div class="tile-sub">點擊進入分類與題目</div>
+    `;
+    tile.addEventListener("click", () => goEvent(dir.name));
+    grid.appendChild(tile);
+  });
 }
 
-.welcome-title{
-  font-weight: 900;
-  font-size: 20px;
-}
-.welcome-subtitle{
-  margin-top: 10px;
-  color: var(--muted);
-  line-height: 1.75;
-  font-size: 13px;
-}
-
-.file-head{
-  display:flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
-}
-.file-head .title{
-  font-weight: 900;
-  font-size: 16px;
-}
-.file-head .meta{
-  margin-top: 8px;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-.file-actions{
-  display:flex;
-  gap: 10px;
-  align-items:center;
-}
-.btn{
-  border: 1px solid var(--border);
-  background: var(--surface2);
-  color: var(--text);
-  border-radius: 999px;
-  padding: 10px 12px;
-  font-size: 13px;
-  cursor:pointer;
-  text-decoration:none;
-}
-.btn:hover{ border-color: rgba(37,99,235,0.25); background: rgba(37,99,235,0.08); }
-
-/* TOC */
-#toc{
-  width: var(--toc-w);
-  position: sticky;
-  top: calc(var(--topbar-h) + 14px);
-}
-#toc.hidden{ display:none; }
-
-.toc-card{
-  padding: 14px 14px;
-  max-height: calc(100vh - var(--topbar-h) - 28px);
-  overflow:auto;
-}
-.toc-title{
-  font-weight: 900;
-  font-size: 12px;
-  letter-spacing: 0.2px;
-  text-transform: uppercase;
-  color: var(--muted);
-}
-.toc-meta{
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--muted);
-}
-.toc-body{
-  margin-top: 10px;
-}
-.toc-body a{
-  display:block;
-  padding: 8px 10px;
-  border-radius: 12px;
-  color: var(--muted);
-  text-decoration:none;
-  border: 1px solid transparent;
-  font-size: 13px;
-  line-height: 1.35;
-}
-.toc-body a:hover{
-  color: var(--text);
-  background: rgba(37,99,235,0.08);
-  border-color: rgba(37,99,235,0.18);
-}
-.toc-body a.active{
-  color: var(--text);
-  background: rgba(37,99,235,0.14);
-  border-color: rgba(37,99,235,0.28);
+function showEventLanding(eventName) {
+  const content = document.getElementById("content");
+  content.innerHTML = `
+    <div class="welcome">
+      <div class="welcome-title">${escapeHtml(eventName)}</div>
+      <div class="welcome-subtitle">請從左側選擇分類或檔案。支援文字檔、Markdown、PDF（可嵌入則嵌入）、ZIP（下載）。</div>
+    </div>
+  `;
+  document.getElementById("tocBody").innerHTML = "";
+  document.getElementById("tocMeta").textContent = "";
 }
 
-/* Markdown / Text rendering */
-.markdown-content{ max-width: 980px; }
-.markdown-content h1{ font-size: 30px; margin: 0 0 16px; letter-spacing: -0.4px; }
-.markdown-content h2{ font-size: 21px; margin-top: 34px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
-.markdown-content h3{ font-size: 17px; margin-top: 22px; }
-.markdown-content p{ line-height: 1.85; margin: 14px 0; }
-.markdown-content a{ color: var(--accent); text-decoration:none; border-bottom: 1px solid rgba(37,99,235,0.25); }
-.markdown-content a:hover{ border-bottom-color: rgba(37,99,235,0.55); }
-.markdown-content blockquote{
-  margin: 18px 0;
-  padding: 12px 14px;
-  border-left: 4px solid rgba(37,99,235,0.35);
-  background: rgba(37,99,235,0.06);
-  border-radius: 14px;
+function githubContentsUrl(path) {
+  return `https://api.github.com/repos/${CFG.user}/${CFG.repo}/contents/${path}?ref=${CFG.branch}`;
 }
 
-pre{
-  position: relative;
-  background: var(--code-bg);
-  color: var(--code-text);
-  padding: 16px;
-  border-radius: 16px;
-  overflow-x: auto;
-  font-size: 13px;
-  line-height: 1.65;
-  border: 1px solid rgba(148,163,184,0.18);
-  margin: 14px 0;
-}
-code{
-  background: rgba(37,99,235,0.10);
-  color: var(--accent);
-  padding: 2px 6px;
-  border-radius: 10px;
-}
-pre code{
-  background: transparent;
-  color: inherit;
-  padding: 0;
-  border-radius: 0;
+function rawUrl(path) {
+  const encoded = path.split("/").map(encodeURIComponent).join("/");
+  return `https://raw.githubusercontent.com/${CFG.user}/${CFG.repo}/${CFG.branch}/${encoded}`;
 }
 
-/* Copy button */
-.copy-btn{
-  position:absolute;
-  top: 10px;
-  right: 10px;
-  height: 30px;
-  padding: 0 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255,255,255,0.18);
-  background: rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.92);
-  cursor:pointer;
-  font-size: 12px;
-  backdrop-filter: blur(10px);
-}
-.copy-btn:hover{
-  background: rgba(255,255,255,0.16);
-  border-color: rgba(255,255,255,0.28);
+async function fetchDir(path) {
+  if (CACHE_DIR.has(path)) return CACHE_DIR.get(path);
+
+  const res = await fetch(githubContentsUrl(path), { cache: "force-cache" });
+  if (!res.ok) throw new Error(`Unable to read dir "${path}": HTTP ${res.status}`);
+
+  const items = await res.json();
+  CACHE_DIR.set(path, items);
+  return items;
 }
 
-/* Text viewer */
-.text-view{
-  white-space: pre;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-  font-size: 13px;
+function sortItems(path, items) {
+  const list = ORDER.order?.[path] || [];
+  const map = new Map();
+  list.forEach((name, i) => map.set(name, i));
+
+  return items.slice().sort((a, b) => {
+    if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
+
+    const ia = map.has(a.name) ? map.get(a.name) : 9999;
+    const ib = map.has(b.name) ? map.get(b.name) : 9999;
+    if (ia !== ib) return ia - ib;
+
+    return a.name.localeCompare(b.name);
+  });
 }
 
-/* Toast */
-.toast{
-  position: fixed;
-  bottom: 18px;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(15,23,42,0.86);
-  color: rgba(255,255,255,0.94);
-  border: 1px solid rgba(255,255,255,0.18);
-  padding: 10px 14px;
-  border-radius: 999px;
-  box-shadow: 0 14px 40px rgba(0,0,0,0.28);
-  opacity: 0;
-  pointer-events: none;
-  transition: 0.16s ease;
-  z-index: 1000;
+function iconFor(name, type) {
+  if (type === "dir") return "📁";
+  const lower = name.toLowerCase();
+  if (lower.endsWith(".md")) return "📝";
+  if (lower.endsWith(".py")) return "🐍";
+  if (lower.endsWith(".txt")) return "📄";
+  if (lower.endsWith(".json")) return "🧩";
+  if (lower.endsWith(".pdf")) return "📑";
+  if (lower.endsWith(".zip")) return "📦";
+  if (!lower.includes(".")) return "📄";
+  return "📄";
 }
-.toast.show{ opacity: 1; }
 
-@media (max-width: 1100px){
-  #toc{ display:none; }
+function badgeFor(name, type) {
+  if (type === "dir") return "dir";
+  const lower = name.toLowerCase();
+  if (!lower.includes(".")) return "text";
+  return lower.split(".").pop();
 }
-@media (max-width: 860px){
-  #layout{ flex-direction: column; }
-  #sidebar{ width: 100%; position: relative; top: 0; max-height: none; }
+
+function fileKindByName(name) {
+  const lower = name.toLowerCase();
+  const hasExt = lower.includes(".");
+  const ext = hasExt ? lower.split(".").pop() : "";
+  if (!hasExt) return { kind: "text", ext: "" };
+
+  if (ext === "md") return { kind: "markdown", ext };
+  if (["py","js","ts","c","cpp","h","hpp","java","go","rs","sh","bash","zsh","txt","log","ini","conf","yaml","yml","toml","sql"].includes(ext)) {
+    return { kind: "text", ext };
+  }
+  if (ext === "json") return { kind: "json", ext };
+  if (ext === "pdf") return { kind: "pdf", ext };
+  if (ext === "zip") return { kind: "zip", ext };
+  return { kind: "other", ext };
+}
+
+async function renderEventSidebar(eventRootPath) {
+  // sidebar tree displays under this root
+  const tree = document.getElementById("tree");
+  tree.innerHTML = "";
+
+  // reset search
+  const searchBox = document.getElementById("searchBox");
+  searchBox.value = "";
+  state.search = "";
+
+  // root node is the event root itself
+  const rootNode = createNode({
+    type: "dir",
+    name: state.eventName,
+    path: eventRootPath,
+  }, { isRoot: true });
+
+  tree.appendChild(rootNode.node);
+  tree.appendChild(rootNode.children);
+
+  // auto open root
+  rootNode.children.style.display = "block";
+  if (!rootNode.children.hasChildNodes()) {
+    await expandDirInto(eventRootPath, rootNode.children);
+  }
+}
+
+function createNode(item, opts = {}) {
+  const node = document.createElement("div");
+  node.className = "node";
+  node.dataset.path = item.path;
+  node.dataset.type = item.type;
+  node.dataset.name = item.name.toLowerCase();
+
+  const left = document.createElement("div");
+  left.className = "name";
+  left.textContent = `${iconFor(item.name, item.type)} ${item.name}`;
+
+  const badge = document.createElement("span");
+  badge.className = "badge";
+  badge.textContent = badgeFor(item.name, item.type);
+
+  // Tooltip (hover message)
+  // GitHub contents API gives size for files; dirs no size.
+  const tip = item.type === "dir"
+    ? `Folder\n${item.path}\nClick to expand`
+    : `File\n${item.path}\nSize: ${formatBytes(item.size || 0)}\nClick to open`;
+  node.title = tip;
+
+  node.appendChild(left);
+  node.appendChild(badge);
+
+  const children = document.createElement("div");
+  children.className = "children";
+  children.dataset.path = item.path;
+
+  if (item.type === "dir") {
+    node.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      const open = children.style.display === "block";
+      children.style.display = open ? "none" : "block";
+
+      if (!open && !children.hasChildNodes()) {
+        await expandDirInto(item.path, children);
+      }
+
+      markActiveNode(item.path);
+    });
+  } else {
+    node.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      await openFile(item.path);
+      markActiveNode(item.path);
+      goFile(state.eventName, item.path);
+    });
+  }
+
+  if (opts.isRoot) {
+    node.classList.add("active");
+  }
+
+  return { node, children };
+}
+
+async function expandDirInto(path, container) {
+  let items;
+  try {
+    items = await fetchDir(path);
+  } catch (e) {
+    container.innerHTML = `<div class="welcome-subtitle">❌ ${escapeHtml(String(e.message || e))}</div>`;
+    return;
+  }
+
+  const sorted = sortItems(path, items);
+
+  sorted.forEach(item => {
+    const n = createNode(item);
+    container.appendChild(n.node);
+    container.appendChild(n.children);
+  });
+
+  filterTree(state.search);
+}
+
+function filterTree(q) {
+  q = (q || "").trim().toLowerCase();
+  const tree = document.getElementById("tree");
+  if (!tree) return;
+
+  const nodes = tree.querySelectorAll(".node");
+  const children = tree.querySelectorAll(".children");
+
+  if (!q) {
+    nodes.forEach(n => n.style.display = "flex");
+    // children keep current open/close status
+    return;
+  }
+
+  // Hide all first
+  nodes.forEach(n => n.style.display = "none");
+  children.forEach(c => c.style.display = "none");
+
+  // Show matches and their ancestors
+  nodes.forEach(n => {
+    const name = n.dataset.name || "";
+    const path = (n.dataset.path || "").toLowerCase();
+    if (name.includes(q) || path.includes(q)) {
+      n.style.display = "flex";
+      // reveal ancestors
+      let p = n.parentElement;
+      while (p && p.id !== "tree") {
+        if (p.classList.contains("children")) {
+          p.style.display = "block";
+          // also show the parent node of this children block
+          const parentNode = p.previousElementSibling;
+          if (parentNode && parentNode.classList.contains("node")) parentNode.style.display = "flex";
+        }
+        p = p.parentElement;
+      }
+    }
+  });
+}
+
+function markActiveNode(path) {
+  document.querySelectorAll(".node").forEach(n => n.classList.remove("active"));
+  const t = document.querySelector(`.node[data-path="${cssEscape(path)}"]`);
+  if (t) t.classList.add("active");
+}
+
+async function openFolderInContent(path) {
+  const content = document.getElementById("content");
+  content.innerHTML = `
+    <div class="welcome">
+      <div class="welcome-title">Folder</div>
+      <div class="welcome-subtitle">${escapeHtml(path)}</div>
+    </div>
+  `;
+  document.getElementById("tocBody").innerHTML = "";
+  document.getElementById("tocMeta").textContent = "";
+}
+
+async function openFile(path) {
+  state.currentFilePath = path;
+
+  // crumbs
+  const eventRoot = `${CFG.content_dir}/${state.eventName}`;
+  const rel = path.startsWith(eventRoot + "/") ? path.slice(eventRoot.length + 1) : path;
+  const segs = rel.split("/");
+
+  setCrumbs([
+    { text: "Home", href: "#/" },
+    { text: state.eventName, href: `#/event/${encodeURIComponent(state.eventName)}` },
+    ...segs.slice(0, -1).map((s, i) => {
+      const sub = `${CFG.content_dir}/${state.eventName}/${segs.slice(0, i + 1).join("/")}`;
+      // "path" route expects relPath under content_dir
+      const relPath = sub.replace(`${CFG.content_dir}/`, "");
+      return { text: s, href: `#/event/${encodeURIComponent(state.eventName)}/path/${encodeURIComponent(relPath)}` };
+    }),
+    { text: segs[segs.length - 1] }
+  ]);
+
+  const content = document.getElementById("content");
+  content.innerHTML = `
+    <div class="welcome">
+      <div class="welcome-title">Loading…</div>
+      <div class="welcome-subtitle">${escapeHtml(path)}</div>
+    </div>
+  `;
+
+  // Fetch file item metadata from parent dir listing (for size/type)
+  const item = await getItemFromParent(path);
+
+  const name = item?.name || path.split("/").pop();
+  const kind = fileKindByName(name);
+
+  // Render file head
+  const head = renderFileHead({
+    name,
+    path,
+    type: kind.kind,
+    ext: kind.ext,
+    size: item?.size ?? 0,
+    downloadUrl: item?.download_url || rawUrl(path),
+  });
+
+  if (kind.kind === "markdown") {
+    await renderMarkdownFile(path, head);
+    return;
+  }
+
+  if (kind.kind === "json") {
+    await renderJsonFile(path, head);
+    return;
+  }
+
+  if (kind.kind === "text") {
+    await renderTextFile(path, head, kind.ext);
+    return;
+  }
+
+  if (kind.kind === "pdf") {
+    await renderPdfFile(path, head);
+    return;
+  }
+
+  if (kind.kind === "zip") {
+    renderDownloadOnly(head, {
+      message: "此檔案類型無法在網頁中顯示，請下載。",
+    });
+    return;
+  }
+
+  // other
+  renderDownloadOnly(head, {
+    message: "此檔案類型無法預覽，請使用下載或 raw 連結。",
+    raw: rawUrl(path),
+  });
+}
+
+async function getItemFromParent(path) {
+  if (CACHE_ITEM.has(path)) return CACHE_ITEM.get(path);
+
+  const parts = path.split("/");
+  const name = parts.pop();
+  const parent = parts.join("/");
+  try {
+    const items = await fetchDir(parent);
+    const found = items.find(x => x.name === name);
+    if (found) CACHE_ITEM.set(path, found);
+    return found || null;
+  } catch {
+    return null;
+  }
+}
+
+function renderFileHead({ name, path, type, ext, size, downloadUrl }) {
+  const wrap = document.createElement("div");
+  wrap.className = "file-head";
+
+  const left = document.createElement("div");
+  left.innerHTML = `
+    <div class="title">file ${escapeHtml(name)}</div>
+    <div class="meta">
+Type: ${escapeHtml(type)}${ext ? " (" + escapeHtml(ext) + ")" : ""}
+Size: ${formatBytes(size)}
+Path: ${escapeHtml(path)}
+    </div>
+  `;
+
+  const actions = document.createElement("div");
+  actions.className = "file-actions";
+
+  const dl = document.createElement("a");
+  dl.className = "btn";
+  dl.href = downloadUrl;
+  dl.target = "_blank";
+  dl.rel = "noreferrer";
+  dl.textContent = "Download";
+
+  actions.appendChild(dl);
+  wrap.appendChild(left);
+  wrap.appendChild(actions);
+
+  return wrap;
+}
+
+async function renderMarkdownFile(path, headEl) {
+  const tocMeta = document.getElementById("tocMeta");
+  tocMeta.textContent = path;
+
+  let md;
+  try {
+    const res = await fetch(rawUrl(path), { cache: "no-cache" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    md = await res.text();
+  } catch (e) {
+    renderError(headEl, `無法載入 Markdown：${String(e.message || e)}`);
+    return;
+  }
+
+  marked.setOptions({ gfm: true, breaks: false });
+  const html = marked.parse(md);
+
+  const content = document.getElementById("content");
+  content.innerHTML = "";
+  content.appendChild(headEl);
+
+  const body = document.createElement("div");
+  body.className = "markdown-content";
+  body.innerHTML = html;
+  content.appendChild(body);
+
+  buildTOC();
+  addCopyButtonsToCodeBlocks(content);
+  toast("Loaded");
+}
+
+async function renderTextFile(path, headEl, ext) {
+  document.getElementById("tocBody").innerHTML = "";
+  document.getElementById("tocMeta").textContent = "";
+
+  let text;
+  try {
+    const res = await fetch(rawUrl(path), { cache: "no-cache" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    text = await res.text();
+  } catch (e) {
+    renderError(headEl, `無法載入文字檔：${String(e.message || e)}`);
+    return;
+  }
+
+  const content = document.getElementById("content");
+  content.innerHTML = "";
+  content.appendChild(headEl);
+
+  const pre = document.createElement("pre");
+  const code = document.createElement("code");
+  code.className = "text-view";
+  // 文字檔：保留原樣
+  code.textContent = text;
+  pre.appendChild(code);
+  content.appendChild(pre);
+
+  // copy button for this pre
+  addCopyButtonsToCodeBlocks(content);
+
+  toast("Loaded");
+}
+
+async function renderJsonFile(path, headEl) {
+  document.getElementById("tocBody").innerHTML = "";
+  document.getElementById("tocMeta").textContent = "";
+
+  let text;
+  try {
+    const res = await fetch(rawUrl(path), { cache: "no-cache" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    text = await res.text();
+  } catch (e) {
+    renderError(headEl, `無法載入 JSON：${String(e.message || e)}`);
+    return;
+  }
+
+  let pretty = text;
+  try {
+    pretty = JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    // keep raw
+  }
+
+  const content = document.getElementById("content");
+  content.innerHTML = "";
+  content.appendChild(headEl);
+
+  const pre = document.createElement("pre");
+  const code = document.createElement("code");
+  code.className = "text-view";
+  code.textContent = pretty;
+  pre.appendChild(code);
+  content.appendChild(pre);
+
+  addCopyButtonsToCodeBlocks(content);
+  toast("Loaded");
+}
+
+async function renderPdfFile(path, headEl) {
+  document.getElementById("tocBody").innerHTML = "";
+  document.getElementById("tocMeta").textContent = "";
+
+  const content = document.getElementById("content");
+  content.innerHTML = "";
+  content.appendChild(headEl);
+
+  // Try embed
+  const frame = document.createElement("iframe");
+  frame.style.width = "100%";
+  frame.style.height = "70vh";
+  frame.style.border = "1px solid var(--border)";
+  frame.style.borderRadius = "16px";
+  frame.style.background = "rgba(255,255,255,0.55)";
+  frame.src = rawUrl(path);
+
+  // If iframe fails (blocked), show fallback message and keep Download button in header.
+  const fallback = document.createElement("div");
+  fallback.className = "welcome-subtitle";
+  fallback.style.marginTop = "12px";
+  fallback.textContent = "若 PDF 無法嵌入顯示，請使用 Download 下載開啟。";
+
+  content.appendChild(frame);
+  content.appendChild(fallback);
+
+  toast("Loaded");
+}
+
+function renderDownloadOnly(headEl, { message, raw }) {
+  document.getElementById("tocBody").innerHTML = "";
+  document.getElementById("tocMeta").textContent = "";
+
+  const content = document.getElementById("content");
+  content.innerHTML = "";
+  content.appendChild(headEl);
+
+  const box = document.createElement("div");
+  box.className = "welcome";
+  box.innerHTML = `
+    <div class="welcome-title">Download only</div>
+    <div class="welcome-subtitle">${escapeHtml(message || "")}</div>
+  `;
+  if (raw) {
+    const p = document.createElement("div");
+    p.className = "welcome-subtitle";
+    p.style.marginTop = "10px";
+    p.innerHTML = `Raw: <a href="${raw}" target="_blank" rel="noreferrer">${escapeHtml(raw)}</a>`;
+    box.appendChild(p);
+  }
+  content.appendChild(box);
+  toast("Ready");
+}
+
+function renderError(headEl, msg) {
+  document.getElementById("tocBody").innerHTML = "";
+  document.getElementById("tocMeta").textContent = "";
+
+  const content = document.getElementById("content");
+  content.innerHTML = "";
+  content.appendChild(headEl);
+
+  const box = document.createElement("div");
+  box.className = "welcome";
+  box.innerHTML = `
+    <div class="welcome-title">Error</div>
+    <div class="welcome-subtitle">${escapeHtml(msg)}</div>
+  `;
+  content.appendChild(box);
+  toast("Error");
+}
+
+function buildTOC() {
+  if (!state.tocEnabled) {
+    document.getElementById("tocBody").innerHTML = "";
+    return;
+  }
+
+  const tocBody = document.getElementById("tocBody");
+  tocBody.innerHTML = "";
+
+  const headings = document.querySelectorAll("#content .markdown-content h2, #content .markdown-content h3");
+  if (!headings.length) {
+    tocBody.innerHTML = `<div class="welcome-subtitle">No headings</div>`;
+    return;
+  }
+
+  const links = [];
+  headings.forEach(h => {
+    const id = makeHeadingId(h.innerText);
+    h.id = id;
+
+    const a = document.createElement("a");
+    a.href = "#";
+    a.textContent = h.innerText;
+    if (h.tagName.toLowerCase() === "h3") a.style.paddingLeft = "18px";
+
+    a.addEventListener("click", (ev) => {
+      ev.preventDefault();
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setActive(id);
+    });
+
+    tocBody.appendChild(a);
+    links.push({ id, a });
+  });
+
+  // Intersection observer for active heading
+  const obs = new IntersectionObserver((entries) => {
+    const visible = entries
+      .filter(e => e.isIntersecting)
+      .sort((a,b) => a.boundingClientRect.top - b.boundingClientRect.top);
+    if (visible.length) setActive(visible[0].target.id);
+  }, { rootMargin: "-20% 0px -70% 0px", threshold: [0, 1] });
+
+  headings.forEach(h => obs.observe(h));
+  setActive(headings[0].id);
+
+  function setActive(id) {
+    links.forEach(x => x.a.classList.toggle("active", x.id === id));
+  }
+}
+
+function addCopyButtonsToCodeBlocks(rootEl) {
+  const pres = rootEl.querySelectorAll("pre");
+  pres.forEach(pre => {
+    // avoid duplicate
+    if (pre.querySelector(".copy-btn")) return;
+
+    const btn = document.createElement("button");
+    btn.className = "copy-btn";
+    btn.type = "button";
+    btn.textContent = "Copy";
+
+    btn.addEventListener("click", async () => {
+      const code = pre.querySelector("code");
+      const text = code ? code.textContent : pre.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.textContent = "Copied";
+        toast("Copied");
+        setTimeout(() => btn.textContent = "Copy", 900);
+      } catch {
+        toast("Copy failed");
+      }
+    });
+
+    pre.appendChild(btn);
+  });
+}
+
+function makeHeadingId(text) {
+  return String(text)
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w\-]/g, "")
+    .slice(0, 80) || "section";
+}
+
+function formatBytes(n) {
+  const num = Number(n || 0);
+  if (!Number.isFinite(num) || num <= 0) return "0 B";
+  const units = ["B","KB","MB","GB"];
+  let i = 0;
+  let v = num;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return `${v.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&","&amp;")
+    .replaceAll("<","&lt;")
+    .replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;")
+    .replaceAll("'","&#39;");
+}
+
+function cssEscape(s) {
+  if (window.CSS && CSS.escape) return CSS.escape(s);
+  return String(s).replaceAll('"','\\"');
 }

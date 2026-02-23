@@ -1,31 +1,43 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Archive</title>
-<link rel="stylesheet" href="css/style.css" />
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Archive</title>
+  <link rel="stylesheet" href="./css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
-<header class="topbar">
-  <div class="logo">🏠</div>
-  <div class="actions">
-    <button id="themeToggle">🌙</button>
-  </div>
-</header>
+
 <body>
-<div class="archive-layout">
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="icon-btn" id="homeBtn" title="Home" aria-label="Home">🏠</button>
+      <div class="brand">sec-archive</div>
+    </div>
 
-  <aside id="sidebar"></aside>
+    <div class="topbar-right">
+      <button class="icon-btn" id="toggleSidebar" title="Toggle Sidebar" aria-label="Toggle Sidebar">☰</button>
+      <button class="icon-btn" id="toggleToc" title="Toggle Right Panel" aria-label="Toggle Right Panel">≡</button>
+      <button class="icon-btn" id="themeToggle" title="Toggle Theme" aria-label="Toggle Theme">🌓</button>
+    </div>
+  </header>
 
-  <main id="content">
-    <h2>Select a document</h2>
-  </main>
+  <div class="archive-layout" id="layoutRoot">
+    <aside id="sidebar" class="panel"></aside>
 
-  <aside id="toc"></aside>
+    <!-- 拖拉把手（左/中） -->
+    <div class="resizer" id="resizerLeft" title="Drag to resize"></div>
 
-</div>
-<button id="toggleSidebar">☰</button>
-<script type="module" src="./js/archive.js"></script>
+    <main id="content" class="panel content-panel">
+      <h2>Select a CTF</h2>
+    </main>
+
+    <!-- 拖拉把手（中/右） -->
+    <div class="resizer" id="resizerRight" title="Drag to resize"></div>
+
+    <aside id="toc" class="panel"></aside>
+  </div>
+
+  <script type="module" src="./js/archive.js"></script>
 </body>
 </html>

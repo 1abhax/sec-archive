@@ -1,57 +1,65 @@
-const USER = "1abhax";
-const REPO = "sec-archive";
+const USER   = "1abhax";
+const REPO   = "sec-archive";
 const BRANCH = "main";
 
-// 固定結構：CTF/<event>/<category>/<challenge>/README.md
+const CACHE_PREFIX = "sec_v1:";
+
+/* ===== Public API ===== */
 export async function loadCTFEvent(eventName) {
   const content = document.getElementById("content");
-  const tocContent = document.getElementById("tocContent");
+  const toc     = document.getElementById("tocContent");
+  if (!content || !toc) return;
 
-  content.innerHTML = `<h2>${escapeHTML(eventName)}</h2><p class="muted">Loading...</p>`;
-  tocContent.innerHTML = `<p class="muted">Loading...</p>`;
+  content.innerHTML = `<h2>${esc(eventName)}</h2><p class="muted">Loading...</p>`;
+  toc.innerHTML     = `<h3>Challenges</h3><p class="muted">Loading...</p>`;
 
-  const readmes = await collectReadmesFixed(eventName);
+  try {
+    const readmes = await collectReadmes(eventName);
 
-  if (!readmes.length) {
-    content.innerHTML = `<h2>${escapeHTML(eventName)}</h2><p>No README found.</p>`;
-    tocContent.innerHTML = `<p class="muted">No entries.</p>`;
-    return;
+    if (!readmes.length) {
+      content.innerHTML = `<h2>${esc(eventName)}</h2><p>No README found.</p>`;
+      toc.innerHTML     = `<h3>Challenges</h3><p class="muted">No entries.</p>`;
+      return;
+    }
+
+    renderChallengeList(readmes);
+    await loadFile(readmes[0].path);
+
+  } catch (err) {
+    console.error("loadCTFEvent error:", err);
+    content.innerHTML = `<h2>${esc(eventName)}</h2><p>Load failed. Try again later.</p>`;
+    toc.innerHTML     = `<h3>Challenges</h3><p class="muted">Error.</p>`;
   }
-
-  renderChallengeList(readmes);
-
-  // auto load first
-  await loadFile(readmes[0].path);
-
-  // set first active (if not already)
-  const first = tocContent.querySelector(".challenge-item");
-  if (first) first.classList.add("active");
 }
 
-async function collectReadmesFixed(eventName) {
-  const result = [];
-  const categories = await fetchDir(`CTF/${eventName}`);
+/* ===== Collect READMEs ===== */
+async function collectReadmes(eventName) {
+  const result     = [];
+  const categories = await fetchDirCached(`CTF/${eventName}`);
+
   if (!Array.isArray(categories)) return result;
 
   for (const cat of categories) {
     if (!cat || cat.type !== "dir") continue;
 
-    const challenges = await fetchDir(cat.path);
+    const challenges = await fetchDirCached(cat.path);
     if (!Array.isArray(challenges)) continue;
 
     for (const chall of challenges) {
       if (!chall || chall.type !== "dir") continue;
 
-      const files = await fetchDir(chall.path);
+      const files = await fetchDirCached(chall.path);
       if (!Array.isArray(files)) continue;
 
-      const readme = files.find(f => f.type === "file" && f.name.toLowerCase() === "readme.md");
+      const readme = files.find(
+        (f) => f.type === "file" && (f.name || "").toLowerCase() === "readme.md"
+      );
       if (!readme) continue;
 
       result.push({
-        category: (cat.name || "").toLowerCase(),
+        category:  (cat.name || "").toLowerCase(),
         challenge: chall.name || "",
-        path: readme.path
+        path:      readme.path,
       });
     }
   }
@@ -64,97 +72,146 @@ async function collectReadmesFixed(eventName) {
   return result;
 }
 
-async function fetchDir(path) {
+/* ===== Fetch with sessionStorage cache ===== */
+async function fetchDirCached(path) {
+  const key = CACHE_PREFIX + "dir:" + path;
+
+  try {
+    const cached = sessionStorage.getItem(key);
+    if (cached) return JSON.parse(cached);
+  } catch (_) { /* ignore */ }
+
   const url = `https://api.github.com/repos/${USER}/${REPO}/contents/${path}`;
-  const res = await fetch(url);
-  if (!res.ok) return [];
-  return await res.json();
+  const res = await fetch(url, {
+    headers: { Accept: "application/vnd.github+json" },
+  });
+
+  if (!res.ok) {
+    console.warn("fetchDir failed:", path, res.status);
+    return [];
+  }
+
+  const json = await res.json();
+
+  try { sessionStorage.setItem(key, JSON.stringify(json)); }
+  catch (_) { /* storage full — ignore */ }
+
+  return json;
 }
 
-function renderChallengeList(readmes) {
-  const tocContent = document.getElementById("tocContent");
-  tocContent.innerHTML = "";
+async function fetchTextCached(rawUrl) {
+  const key = CACHE_PREFIX + "raw:" + rawUrl;
 
-  readmes.forEach((item) => {
+  try {
+    const cached = sessionStorage.getItem(key);
+    if (cached != null) return cached;
+  } catch (_) { /* ignore */ }
+
+  const res = await fetch(rawUrl);
+  if (!res.ok) throw new Error(`Failed: ${rawUrl}`);
+
+  const text = await res.text();
+
+  try { sessionStorage.setItem(key, text); }
+  catch (_) { /* ignore */ }
+
+  return text;
+}
+
+/* ===== UI: challenge list ===== */
+function renderChallengeList(readmes) {
+  const toc = document.getElementById("tocContent");
+  if (!toc) return;
+  toc.innerHTML = "";
+
+  readmes.forEach((item, idx) => {
     const div = document.createElement("div");
     div.className = "challenge-item";
     div.textContent = `${item.category} / ${item.challenge}`;
 
     div.addEventListener("click", async () => {
-      tocContent.querySelectorAll(".challenge-item.active")
-        .forEach(el => el.classList.remove("active"));
-
+      toc.querySelectorAll(".challenge-item.active").forEach((el) =>
+        el.classList.remove("active")
+      );
       div.classList.add("active");
-      await loadFile(item.path);
+
+      try { await loadFile(item.path); }
+      catch (e) { console.error(e); }
     });
 
-    tocContent.appendChild(div);
+    if (idx === 0) div.classList.add("active");
+    toc.appendChild(div);
   });
 }
 
+/* ===== Load & render single README ===== */
 async function loadFile(path) {
   const content = document.getElementById("content");
+  if (!content) return;
+
   content.innerHTML = `<p class="muted">Loading README...</p>`;
 
   const rawUrl = `https://raw.githubusercontent.com/${USER}/${REPO}/${BRANCH}/${path}`;
-  const res = await fetch(rawUrl);
 
-  if (!res.ok) {
-    content.innerHTML = `<p>Failed to load: ${escapeHTML(path)}</p>`;
-    return;
+  try {
+    const md = await fetchTextCached(rawUrl);
+
+    if (window.marked) {
+      marked.setOptions({ gfm: true, breaks: false });
+    }
+
+    content.innerHTML = window.marked
+      ? marked.parse(md)
+      : `<pre>${esc(md)}</pre>`;
+
+    fixRelativeAssetPaths(path);
+    hardenLinks();
+
+    // 載入後滾到頂
+    content.scrollTop = 0;
+
+  } catch (err) {
+    console.error(err);
+    content.innerHTML = `<p>Failed to load: ${esc(path)}</p>`;
   }
-
-  const md = await res.text();
-
-  if (window.marked) {
-    marked.setOptions({ gfm: true, breaks: false });
-  }
-
-  content.innerHTML = marked.parse(md);
-
-  fixRelativeAssetPaths(path);
 }
 
+/* ===== Fix relative paths ===== */
 function fixRelativeAssetPaths(readmePath) {
   const baseDir = readmePath.replace(/README\.md$/i, "");
+  const prefix  = `https://raw.githubusercontent.com/${USER}/${REPO}/${BRANCH}/${baseDir}`;
 
-  // images
-  document.querySelectorAll("#content img").forEach(img => {
+  document.querySelectorAll("#content img").forEach((img) => {
     const src = img.getAttribute("src") || "";
-    if (!src) return;
-    if (isAbsUrl(src) || src.startsWith("data:")) return;
-
-    img.setAttribute(
-      "src",
-      `https://raw.githubusercontent.com/${USER}/${REPO}/${BRANCH}/${baseDir}${src}`
-    );
+    if (!src || isAbsUrl(src) || src.startsWith("data:")) return;
+    img.setAttribute("src", prefix + src);
   });
 
-  // links -> raw
-  document.querySelectorAll("#content a").forEach(a => {
+  document.querySelectorAll("#content a").forEach((a) => {
     const href = a.getAttribute("href") || "";
-    if (!href) return;
-    if (isAbsUrl(href) || href.startsWith("#") || href.startsWith("mailto:")) return;
-
-    a.setAttribute(
-      "href",
-      `https://raw.githubusercontent.com/${USER}/${REPO}/${BRANCH}/${baseDir}${href}`
-    );
-    a.setAttribute("target", "_blank");
-    a.setAttribute("rel", "noopener noreferrer");
+    if (!href || isAbsUrl(href) || href.startsWith("#") || href.startsWith("mailto:")) return;
+    a.setAttribute("href", prefix + href);
   });
 }
 
+/* ===== Harden external links ===== */
+function hardenLinks() {
+  document.querySelectorAll("#content a").forEach((a) => {
+    const href = a.getAttribute("href") || "";
+    if (isAbsUrl(href)) {
+      a.setAttribute("target", "_blank");
+      a.setAttribute("rel", "noopener noreferrer");
+    }
+  });
+}
+
+/* ===== Utils ===== */
 function isAbsUrl(u) {
   return /^https?:\/\//i.test(u);
 }
 
-function escapeHTML(s) {
-  return String(s).replace(/[&<>"']/g, m => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    '"': "&quot;",
-    "'": "&#39;"
-  }[m]));
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, (m) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[m]
+  );
 }

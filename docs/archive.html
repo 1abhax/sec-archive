@@ -1,53 +1,56 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Archive</title>
-  <link rel="stylesheet" href="./css/style.css" />
+  <link rel="stylesheet" href="style.css">
   <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
+<!-- ★ body 加上 archive-page class，鎖住 body 不滾 -->
+<body class="archive-page">
 
-<body>
-  <header class="topbar">
+  <!-- Topbar -->
+  <div class="topbar">
     <div class="topbar-left">
-      <button class="icon-btn" id="homeBtn" title="Home" aria-label="Home">🏠</button>
-      <div class="brand">sec-archive</div>
+      <button class="icon-btn" id="homeBtn">🏠</button>
+      <span class="brand">sec-archive</span>
     </div>
-
     <div class="topbar-right">
-      <button class="icon-btn" id="themeToggle" title="Theme" aria-label="Theme">🌓</button>
-    </div>
-  </header>
-
-  <div class="archive-shell">
-    <div class="archive-layout" id="layoutRoot">
-      <!-- 左 -->
-      <aside id="sidebar" class="panel"></aside>
-
-      <!-- resize left -->
-      <div class="resizer" id="resizerLeft" title="Drag"></div>
-
-      <!-- 中 -->
-      <main id="content" class="panel content-panel">
-        <h2>Select a CTF</h2>
-      </main>
-
-      <!-- 右：固定寬度欄位，但內容是卡片 -->
-      <aside id="tocWrap" class="toc-wrap">
-        <div id="tocHandle" class="toc-handle" title="Toggle">⮜</div>
-
-        <div id="toc" class="panel toc-card">
-          <div class="toc-header">
-            <button id="tocToggleBtn" class="mini-btn" title="Collapse">⮜</button>
-            <span>Challenges</span>
-          </div>
-          <div id="tocContent"></div>
-        </div>
-      </aside>
+      <button class="icon-btn" id="themeToggle">🌓</button>
     </div>
   </div>
 
-  <script type="module" src="./js/archive.js"></script>
+  <!-- 三欄 layout -->
+  <div class="archive-layout" id="layoutRoot">
+
+    <!-- 左側 sidebar -->
+    <div class="panel" id="sidebar">
+      <p class="muted">Loading...</p>
+    </div>
+
+    <!-- 左 resizer -->
+    <div class="resizer" id="resizerLeft"></div>
+
+    <!-- 中間 content -->
+    <div class="panel" id="content">
+      <h2>Select a CTF</h2>
+    </div>
+
+    <!-- 右 resizer -->
+    <div class="resizer" id="resizerRight"></div>
+
+    <!-- 右側 toc -->
+    <div class="panel" id="toc">
+      <div class="toc-header">
+        <button class="icon-btn" id="tocToggleBtn">⮜</button>
+        <span>Challenges</span>
+      </div>
+      <div id="tocContent"></div>
+    </div>
+
+  </div>
+
+  <script type="module" src="./archive.js"></script>
 </body>
 </html>

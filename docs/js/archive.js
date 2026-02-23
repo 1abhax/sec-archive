@@ -1,20 +1,35 @@
 import { loadCTFEvent } from "./CTF.js";
 
-const DEFAULT_SIDEBAR_PX = 300;
+const DEFAULT_SIDEBAR_PX = 280;
+const DEFAULT_TOC_PX     = 300;
 
-function setVar(name, value) {
+function qs(id)  { return document.getElementById(id); }
+
+function setCSSVar(name, value) {
   document.documentElement.style.setProperty(name, value);
 }
 
-function applyThemeFromStorage() {
-  if (localStorage.getItem("sec_archive_theme") === "dark") {
-    document.body.classList.add("dark");
-  }
+function saveLayoutWidths(sidebarPx, tocPx) {
+  localStorage.setItem("sec_archive_sidebar_px", String(sidebarPx));
+  localStorage.setItem("sec_archive_toc_px",     String(tocPx));
 }
 
+function loadLayoutWidths() {
+  const s = parseInt(localStorage.getItem("sec_archive_sidebar_px") || "", 10);
+  const t = parseInt(localStorage.getItem("sec_archive_toc_px")     || "", 10);
+  return {
+    sidebar: Number.isFinite(s) ? s : DEFAULT_SIDEBAR_PX,
+    toc:     Number.isFinite(t) ? t : DEFAULT_TOC_PX,
+  };
+}
+
+/* ===== Theme ===== */
 function enableThemeToggle() {
-  const btn = document.getElementById("themeToggle");
+  const btn = qs("themeToggle");
   if (!btn) return;
+
+  const saved = localStorage.getItem("sec_archive_theme");
+  if (saved === "dark") document.body.classList.add("dark");
 
   btn.addEventListener("click", () => {
     document.body.classList.toggle("dark");
@@ -25,71 +40,91 @@ function enableThemeToggle() {
   });
 }
 
+/* ===== Home button ===== */
 function enableHomeBtn() {
-  const btn = document.getElementById("homeBtn");
+  const btn = qs("homeBtn");
   if (!btn) return;
   btn.addEventListener("click", () => {
     window.location.href = "./index.html";
   });
 }
 
-function enableSidebarResize() {
-  const resizer = document.getElementById("resizerLeft");
-  const layoutRoot = document.getElementById("layoutRoot");
+/* ===== Resizers ===== */
+function enableResizers() {
+  const resLeft   = qs("resizerLeft");
+  const resRight  = qs("resizerRight");
+  const layoutRoot = qs("layoutRoot");
 
-  let dragging = false;
+  let dragging = null;
 
-  resizer.addEventListener("mousedown", (e) => {
-    e.preventDefault();
-    dragging = true;
-    document.body.classList.add("dragging");
-  });
+  function onDown(which) {
+    return (e) => {
+      e.preventDefault();
+      dragging = which;
+      document.body.classList.add("dragging");
+    };
+  }
 
-  window.addEventListener("mousemove", (e) => {
+  function onMove(e) {
     if (!dragging) return;
-    const rect = layoutRoot.getBoundingClientRect();
-    const x = e.clientX - rect.left;
 
-    const newW = Math.max(240, Math.min(520, Math.round(x)));
-    setVar("--sidebar-w", `${newW}px`);
-    localStorage.setItem("sec_archive_sidebar_px", String(newW));
-  });
+    const rect  = layoutRoot.getBoundingClientRect();
+    const x     = e.clientX - rect.left;
+    const total = rect.width;
 
-  window.addEventListener("mouseup", () => {
+    if (dragging === "left") {
+      const newSidebar = Math.max(180, Math.min(520, Math.round(x)));
+      setCSSVar("--sidebar-w", `${newSidebar}px`);
+      saveLayoutWidths(newSidebar, getTocWidth());
+    } else if (dragging === "right") {
+      const newToc = Math.max(200, Math.min(520, Math.round(total - x)));
+      setCSSVar("--toc-w", `${newToc}px`);
+      saveLayoutWidths(getSidebarWidth(), newToc);
+    }
+  }
+
+  function onUp() {
     if (!dragging) return;
-    dragging = false;
+    dragging = null;
     document.body.classList.remove("dragging");
+  }
+
+  function getSidebarWidth() {
+    const v = getComputedStyle(document.documentElement)
+      .getPropertyValue("--sidebar-w").trim();
+    return parseInt(v, 10) || DEFAULT_SIDEBAR_PX;
+  }
+  function getTocWidth() {
+    const v = getComputedStyle(document.documentElement)
+      .getPropertyValue("--toc-w").trim();
+    return parseInt(v, 10) || DEFAULT_TOC_PX;
+  }
+
+  resLeft ?.addEventListener("mousedown", onDown("left"));
+  resRight?.addEventListener("mousedown", onDown("right"));
+  window.addEventListener("mousemove", onMove);
+  window.addEventListener("mouseup",   onUp);
+}
+
+/* ===== TOC collapse ===== */
+function enableTocCollapse() {
+  const btn    = qs("tocToggleBtn");
+  const layout = qs("layoutRoot");
+  if (!btn || !layout) return;
+
+  btn.addEventListener("click", () => {
+    layout.classList.toggle("toc-collapsed");
+    btn.textContent = layout.classList.contains("toc-collapsed") ? "⮞" : "⮜";
   });
 }
 
-function applySidebarWidth() {
-  const s = parseInt(localStorage.getItem("sec_archive_sidebar_px") || "", 10);
-  setVar("--sidebar-w", `${Number.isFinite(s) ? s : DEFAULT_SIDEBAR_PX}px`);
-}
-
-function enableTocCollapse() {
-  const layout = document.getElementById("layoutRoot");
-  const btn = document.getElementById("tocToggleBtn");
-  const handle = document.getElementById("tocHandle");
-
-  const toggle = () => {
-    layout.classList.toggle("toc-collapsed");
-    const collapsed = layout.classList.contains("toc-collapsed");
-
-    // header button icon
-    btn.textContent = collapsed ? "⮞" : "⮜";
-    // handle icon
-    handle.textContent = collapsed ? "⮞" : "⮜";
-  };
-
-  btn.addEventListener("click", toggle);
-  handle.addEventListener("click", toggle);
-}
-
+/* ===== Sidebar builder ===== */
 async function buildSidebarCTF() {
-  const sidebar = document.getElementById("sidebar");
+  const sidebar = qs("sidebar");
+  if (!sidebar) return;
   sidebar.innerHTML = "";
 
+  // Title row
   const titleRow = document.createElement("div");
   titleRow.className = "sidebar-title-row";
 
@@ -99,13 +134,15 @@ async function buildSidebarCTF() {
 
   const foldBtn = document.createElement("button");
   foldBtn.className = "mini-btn";
+  foldBtn.id = "foldCTF";
   foldBtn.textContent = "▾";
-  foldBtn.title = "Collapse/Expand";
+  foldBtn.title = "Collapse / Expand";
 
   titleRow.appendChild(title);
   titleRow.appendChild(foldBtn);
   sidebar.appendChild(titleRow);
 
+  // Children container
   const container = document.createElement("div");
   container.className = "children open";
   sidebar.appendChild(container);
@@ -115,39 +152,62 @@ async function buildSidebarCTF() {
     foldBtn.textContent = open ? "▾" : "▸";
   });
 
-  const res = await fetch("./data/order_CTF.json");
-  const data = await res.json();
+  // Fetch order list
+  try {
+    const res  = await fetch("./data/order_CTF.json");
+    if (!res.ok) throw new Error("Failed to load order_CTF.json");
+    const data = await res.json();
+    const list = Array.isArray(data.ctf_order) ? data.ctf_order : [];
 
-  data.ctf_order.forEach((name) => {
-    const node = document.createElement("div");
-    node.className = "node";
-    node.textContent = name;
+    if (!list.length) {
+      container.innerHTML = `<p class="muted">No CTF events.</p>`;
+      return;
+    }
 
-    node.addEventListener("click", async () => {
-      sidebar.querySelectorAll(".node.active").forEach(el => el.classList.remove("active"));
-      node.classList.add("active");
-      await loadCTFEvent(name);
+    list.forEach((name) => {
+      const node = document.createElement("div");
+      node.className = "node";
+      node.textContent = name;
+
+      node.addEventListener("click", async () => {
+        sidebar.querySelectorAll(".node.active").forEach((el) =>
+          el.classList.remove("active")
+        );
+        node.classList.add("active");
+        await loadCTFEvent(name);
+      });
+
+      container.appendChild(node);
     });
 
-    container.appendChild(node);
-  });
+    // ★ Deep-link：從首頁帶 ?event=xxx 進來，自動選取
+    const params = new URLSearchParams(location.search);
+    const eventParam = params.get("event");
+    if (eventParam) {
+      const nodes = Array.from(container.querySelectorAll(".node"));
+      const target = nodes.find((n) => n.textContent === eventParam);
+      if (target) target.click();
+    }
+
+  } catch (err) {
+    console.error(err);
+    container.innerHTML = `<p class="muted">Failed to load CTF list.</p>`;
+  }
 }
 
-document.addEventListener("DOMContentLoaded", async () => {
-  applyThemeFromStorage();
-  applySidebarWidth();
+/* ===== Init layout ===== */
+function applyInitialLayout() {
+  const { sidebar, toc } = loadLayoutWidths();
+  setCSSVar("--sidebar-w", `${sidebar}px`);
+  setCSSVar("--toc-w", `${toc}px`);
+}
 
+/* ===== DOMContentLoaded ===== */
+document.addEventListener("DOMContentLoaded", async () => {
+  applyInitialLayout();
   enableThemeToggle();
   enableHomeBtn();
-  enableSidebarResize();
+  enableResizers();
   enableTocCollapse();
-
   await buildSidebarCTF();
-
-  const hash = decodeURIComponent(location.hash.slice(1)).trim();
-  if (hash) {
-    const nodes = [...document.querySelectorAll("#sidebar .node")];
-    const node = nodes.find(n => n.textContent.trim() === hash);
-    if (node) node.click();
-  }
 });

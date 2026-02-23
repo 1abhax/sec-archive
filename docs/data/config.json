@@ -1,7 +1,6 @@
 ﻿{
   "user": "1abhax",
-  "repo": "CTF",
+  "repo": "sec-archive",
   "branch": "main",
-  "content_dir": "writeups",
-  "backgrounds": ["assets/bg/bg1.jpg"]
+  "content_dir": "writeups"
 }

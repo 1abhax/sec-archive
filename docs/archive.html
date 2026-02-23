@@ -16,7 +16,6 @@
     </div>
 
     <div class="topbar-right">
-      <button class="icon-btn" id="toggleSidebar" title="Toggle Sidebar" aria-label="Toggle Sidebar">☰</button>
       <button class="icon-btn" id="toggleToc" title="Toggle Right Panel" aria-label="Toggle Right Panel">≡</button>
       <button class="icon-btn" id="themeToggle" title="Toggle Theme" aria-label="Toggle Theme">🌓</button>
     </div>
@@ -35,7 +34,13 @@
     <!-- 拖拉把手（中/右） -->
     <div class="resizer" id="resizerRight" title="Drag to resize"></div>
 
-    <aside id="toc" class="panel"></aside>
+<aside id="toc" class="panel">
+  <div class="toc-header">
+    <button id="toggleToc" class="mini-btn">⮜</button>
+    <span>Challenges</span>
+  </div>
+  <div id="tocContent"></div>
+</aside>
   </div>
 
   <script type="module" src="./js/archive.js"></script>

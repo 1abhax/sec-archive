@@ -5,7 +5,7 @@ const BRANCH = "main";
 // 只找固定位置：CTF/<event>/<category>/<challenge>/README.md
 export async function loadCTFEvent(eventName) {
   const content = document.getElementById("content");
-  const toc = document.getElementById("toc");
+const toc = document.getElementById("tocContent");
 
   content.innerHTML = `<h2>${escapeHTML(eventName)}</h2><p class="muted">Loading...</p>`;
   toc.innerHTML = `<h3>Challenges</h3><p class="muted">Loading...</p>`;
@@ -75,7 +75,7 @@ async function fetchDir(path) {
 
 function renderChallengeList(readmes) {
   const toc = document.getElementById("toc");
-  toc.innerHTML = `<h3>Challenges</h3>`;
+toc.innerHTML = "";
 
   readmes.forEach((item, idx) => {
     const div = document.createElement("div");

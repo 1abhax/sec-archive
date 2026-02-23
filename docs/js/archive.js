@@ -46,23 +46,6 @@ function enableHomeBtn() {
   });
 }
 
-function enableCollapseButtons() {
-  const sidebarBtn = qs("toggleSidebar");
-  const tocBtn = qs("toggleToc");
-
-  const layoutRoot = qs("layoutRoot");
-  if (sidebarBtn) {
-    sidebarBtn.addEventListener("click", () => {
-      layoutRoot.classList.toggle("sidebar-collapsed");
-    });
-  }
-
-  if (tocBtn) {
-    tocBtn.addEventListener("click", () => {
-      layoutRoot.classList.toggle("toc-collapsed");
-    });
-  }
-}
 
 function enableResizers() {
   const resLeft = qs("resizerLeft");
@@ -183,7 +166,22 @@ document.addEventListener("DOMContentLoaded", async () => {
   applyInitialLayout();
   enableThemeToggle();
   enableHomeBtn();
-  enableCollapseButtons();
   enableResizers();
+  enableTocCollapse();
   await buildSidebarCTF();
 });
+function enableTocCollapse() {
+  const btn = document.getElementById("toggleToc");
+  const layout = document.getElementById("layoutRoot");
+  
+
+  if (!btn) return;
+
+  btn.addEventListener("click", () => {
+    layout.classList.toggle("toc-collapsed");
+
+    btn.textContent = layout.classList.contains("toc-collapsed")
+      ? "⮞"
+      : "⮜";
+  });
+}

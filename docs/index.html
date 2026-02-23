@@ -6,19 +6,55 @@
   <title>1abhax</title>
   <link rel="stylesheet" href="./css/style.css" />
 </head>
+
 <body>
   <header class="topbar">
     <div class="topbar-left">
       <div class="brand">1abhax</div>
     </div>
+
     <div class="topbar-right">
-      <a class="icon-btn" href="./archive.html" style="text-decoration:none;">Archive</a>
+      <a class="icon-btn" href="./archive.html">Archive</a>
+      <button class="icon-btn" id="themeToggle">🌓</button>
     </div>
   </header>
 
-  <main style="padding:20px;">
-    <h2>Home</h2>
-    <p class="muted">Use Archive to browse CTF writeups.</p>
-  </main>
+  <div class="layout">
+
+    <!-- 左側個人資訊 -->
+    <aside class="profile">
+      <img src="./avatar.jpg" class="avatar" />
+      <h1>1abhax</h1>
+      <p>Cybersecurity Researcher</p>
+
+      <div class="links">
+        <a href="https://github.com/1abhax" target="_blank">
+          GitHub
+        </a>
+      </div>
+    </aside>
+
+    <!-- 右側 Timeline -->
+    <main class="timeline-wrap">
+      <h2>Timeline</h2>
+      <div id="timeline"></div>
+    </main>
+
+  </div>
+
+  <script src="./js/home.js"></script>
+  <script>
+    document.getElementById("themeToggle").onclick = () => {
+      document.body.classList.toggle("dark");
+      localStorage.setItem(
+        "sec_archive_theme",
+        document.body.classList.contains("dark") ? "dark" : "light"
+      );
+    };
+
+    if (localStorage.getItem("sec_archive_theme") === "dark") {
+      document.body.classList.add("dark");
+    }
+  </script>
 </body>
 </html>

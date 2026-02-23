@@ -1,96 +1,228 @@
+/* ===== 全域背景 ===== */
 body {
   margin:0;
-  font-family: Inter, sans-serif;
-  background:#0b1220;
-  color:#e2e8f0;
-}
-
-/* Home layout */
-.layout {
+  font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display",Inter,sans-serif;
+  background: 
+    linear-gradient(rgba(255,255,255,0.9), rgba(255,255,255,0.9)),
+    url("../assets/bg/bg1.jpg");
+  background-size: cover;
+  background-position: center;
+  background-attachment: fixed;
   display:flex;
+  justify-content:center;
+  align-items:center;
   min-height:100vh;
+  color:#111;
 }
 
+/* ===== 主容器 ===== */
+.layout,
+.archive-layout {
+  width:88%;
+  max-width:1300px;
+  min-height:85vh;
+  display:flex;
+  border-radius:32px;
+  background:white;
+  box-shadow:
+    0 20px 60px rgba(0,0,0,0.08),
+    0 2px 8px rgba(0,0,0,0.05);
+  overflow:hidden;
+}
+
+/* ===== 左側個人資料 ===== */
 .profile {
-  width:280px;
-  background:#111827;
-  padding:40px 20px;
+  width:300px;
+  background:white;
+  padding:60px 40px;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
   text-align:center;
+  border-right:1px solid #f0f0f0;
 }
 
 .avatar {
-  width:140px;
+  width:150px;
+  height:150px;
   border-radius:50%;
-  margin-bottom:20px;
+  object-fit:cover;
+  margin-bottom:25px;
 }
 
+.profile h1 {
+  font-size:22px;
+  font-weight:600;
+  margin:10px 0 6px;
+}
+
+.profile p {
+  font-size:14px;
+  color:#666;
+}
+
+.links {
+  margin-top:30px;
+}
+
+.links a {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  text-decoration:none;
+  color:#111;
+  font-weight:500;
+  font-size:14px;
+}
+
+.links a:hover {
+  opacity:0.6;
+}
+
+/* GitHub icon */
+.github-icon {
+  width:18px;
+  height:18px;
+  fill:#111;
+}
+
+/* ===== 右側 Timeline ===== */
 .timeline-wrap {
   flex:1;
-  padding:40px;
+  padding:80px 80px;
+  overflow:auto;
+}
+
+.timeline-wrap h2 {
+  font-size:26px;
+  font-weight:600;
+  margin-bottom:50px;
 }
 
 .timeline-item {
-  padding:20px;
-  border-left:3px solid #3b82f6;
-  margin-bottom:30px;
+  padding:28px 32px;
+  border-radius:18px;
+  margin-bottom:35px;
+  background:#f8f9fa;
   cursor:pointer;
-  transition:0.2s;
+  transition: all 0.25s ease;
 }
 
 .timeline-item:hover {
-  background:#1f2937;
+  transform:translateY(-4px);
+  box-shadow:0 12px 30px rgba(0,0,0,0.06);
+  background:#ffffff;
 }
 
 .tag {
   display:inline-block;
-  padding:4px 10px;
-  background:#2563eb;
+  padding:5px 14px;
   border-radius:20px;
   font-size:12px;
-  margin-bottom:10px;
+  background:#e5e7eb;
+  color:#333;
+  margin-bottom:12px;
 }
 
-/* Archive */
-.archive-layout {
-  display:flex;
-  min-height:100vh;
+.timeline-item h3 {
+  margin:0 0 6px;
+  font-size:18px;
+  font-weight:600;
 }
 
+.timeline-item small {
+  color:#777;
+  font-size:13px;
+}
+
+/* ===== Archive Sidebar ===== */
 #sidebar {
-  width:320px;
-  background:#111827;
-  padding:20px;
+  width:280px;
+  background:#fafafa;
+  padding:50px 30px;
   overflow:auto;
+  border-right:1px solid #eee;
 }
 
 .node {
+  padding:6px 10px;
   cursor:pointer;
-  padding:8px 10px;
+  border-radius:10px;
+  font-size:14px;
+  transition:0.2s ease;
 }
 
 .node:hover {
-  background:#1f2937;
+  background:#e9ecef;
 }
 
 .folder::before {
-  content:"📁 ";
+  content:"› ";
+  transition: transform 0.3s ease;
+  display:inline-block;
 }
 
 .folder.open::before {
-  content:"📂 ";
+  transform: rotate(90deg);
 }
-
-.file::before {
-  content:"📄 ";
-}
+.file::before { content:"– "; }
 
 .children {
-  margin-left:15px;
-  display:none;
+  margin-left:18px;
+  max-height:0;
+  overflow:hidden;
+  opacity:0;
+  transition:
+    max-height 0.35s cubic-bezier(.4,0,.2,1),
+    opacity 0.25s ease;
+}
+.children.open {
+  max-height:500px;
+  opacity:1;
 }
 
+/* ===== Content 區 ===== */
 #content {
   flex:1;
-  padding:40px;
+  padding:80px;
   overflow:auto;
+}
+
+#content h1 {
+  font-size:28px;
+  font-weight:600;
+}
+
+#content h2 {
+  font-size:22px;
+  margin-top:40px;
+}
+
+pre {
+  background:#f4f5f7;
+  padding:18px;
+  border-radius:14px;
+  overflow:auto;
+}
+
+/* ===== 微縮按壓動畫 ===== */
+.timeline-item,
+.node {
+  transition:
+    transform 0.18s cubic-bezier(.4,.0,.2,1),
+    box-shadow 0.25s ease,
+    background 0.25s ease;
+}
+
+.timeline-item:active,
+.node:active {
+  transform: scale(0.97);
+}
+
+.timeline-item:hover {
+  transform: translateY(-3px);
+}
+
+.timeline-item:active {
+  transform: translateY(0) scale(0.96);
 }

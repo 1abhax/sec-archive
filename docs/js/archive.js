@@ -54,9 +54,9 @@ function createNode(name, isFolder) {
 
   if (isFolder) {
     node.onclick = () => {
-      node.classList.toggle("open");
-      children.style.display = children.style.display === "block" ? "none" : "block";
-    };
+  node.classList.toggle("open");
+  children.classList.toggle("open");
+};
   }
 
   return { node, children };

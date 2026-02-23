@@ -18,8 +18,8 @@ body {
 /* ===== 主容器 ===== */
 .layout,
 .archive-layout {
-  width:88%;
-  max-width:1300px;
+  width:92%;
+  max-width:1500px;
   min-height:85vh;
   display:flex;
   border-radius:32px;
@@ -225,4 +225,29 @@ pre {
 
 .timeline-item:active {
   transform: translateY(0) scale(0.96);
+}
+
+/* ===== 右側 TOC ===== */
+#toc {
+  width:260px;
+  background:#fafafa;
+  padding:60px 30px;
+  border-left:1px solid #eee;
+  overflow:auto;
+}
+
+#toc h3 {
+  font-size:16px;
+  margin-bottom:20px;
+}
+
+.toc-item {
+  font-size:14px;
+  margin-bottom:10px;
+  cursor:pointer;
+  color:#555;
+}
+
+.toc-item:hover {
+  color:#111;
 }

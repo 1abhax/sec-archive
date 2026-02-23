@@ -1,39 +1,35 @@
 // archive.js
 
-import { loadCTF } from "./CTF.js";
+import { loadCTFEvent } from "./CTF.js";
 
-const MAJORS = [
-  {
-    name: "CTF",
-    handler: loadCTF
-  }
-];
-
-function init() {
+async function init() {
   const sidebar = document.getElementById("sidebar");
 
-  // 建立左側 tag
-  MAJORS.forEach(major => {
+  const res = await fetch("./data/order_CTF.json");
+  const data = await res.json();
+
+  // 建立主分類
+  const mainNode = document.createElement("div");
+  mainNode.className = "node folder";
+  mainNode.textContent = "#CTF";
+  sidebar.appendChild(mainNode);
+
+  const container = document.createElement("div");
+  container.className = "children open";
+  sidebar.appendChild(container);
+
+  // 按照順序建立 CTF play
+  data.ctf_order.forEach(name => {
     const node = document.createElement("div");
-    node.className = "node folder";
-    node.textContent = "#" + major.name;
+    node.className = "node";
+    node.textContent = name;
 
     node.onclick = () => {
-      major.handler();
+      loadCTFEvent(name);
     };
 
-    sidebar.appendChild(node);
+    container.appendChild(node);
   });
-
-  // 讀取 URL 參數
-  const urlParams = new URLSearchParams(window.location.search);
-  const major = urlParams.get("major");
-  const event = urlParams.get("event");
-
-  // 如果是 CTF 並且有 event
-  if (major === "CTF") {
-    loadCTF(event);
-  }
 }
 
 init();

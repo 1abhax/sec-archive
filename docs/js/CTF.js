@@ -4,41 +4,17 @@ const USER = "1abhax";
 const REPO = "sec-archive";
 const BRANCH = "main";
 
-export async function loadCTF(eventName = null) {
-  const sidebar = document.getElementById("sidebar");
+export async function loadCTFEvent(eventName) {
   const content = document.getElementById("content");
+  const toc = document.getElementById("toc");
 
-  const basePath = eventName
-    ? `CTF/${eventName}`
-    : "CTF";
-
-  sidebar.innerHTML = "<h3>CTF</h3>";
-  content.innerHTML = "<h2>Loading...</h2>";
+  content.innerHTML = `<h2>${eventName}</h2><p>Loading...</p>`;
+  toc.innerHTML = "";
 
   const readmes = [];
-  await scanDirectory(basePath, readmes);
+  await scanDirectory(`CTF/${eventName}`, readmes);
 
-  sidebar.innerHTML = "<h3>CTF</h3>";
-
-  readmes.forEach(path => {
-    const parts = path.split("/");
-
-    // 結構: CTF / LACTF / Web / challenge / README.md
-    const category = parts[2];
-    const challenge = parts[3];
-
-    const display = `${category} / ${challenge}`;
-
-    const node = document.createElement("div");
-    node.className = "node";
-    node.textContent = display;
-
-    node.onclick = () => loadFile(path);
-
-    sidebar.appendChild(node);
-  });
-
-  content.innerHTML = "<h2>Select a document</h2>";
+  renderChallengeList(readmes);
 }
 
 async function scanDirectory(path, result) {
@@ -62,9 +38,30 @@ async function scanDirectory(path, result) {
   }
 }
 
+function renderChallengeList(readmes) {
+  const content = document.getElementById("content");
+
+  content.innerHTML = "<h2>Challenges</h2>";
+
+  readmes.forEach(path => {
+    const parts = path.split("/");
+
+    // CTF / LACTF / Web / challenge / README.md
+    const category = parts[2];
+    const challenge = parts[3];
+
+    const div = document.createElement("div");
+    div.className = "timeline-item";
+    div.innerHTML = `<h3>${category} / ${challenge}</h3>`;
+
+    div.onclick = () => loadFile(path);
+
+    content.appendChild(div);
+  });
+}
+
 async function loadFile(path) {
   const content = document.getElementById("content");
-  const toc = document.getElementById("toc");
 
   const res = await fetch(
     `https://raw.githubusercontent.com/${USER}/${REPO}/${BRANCH}/${path}`

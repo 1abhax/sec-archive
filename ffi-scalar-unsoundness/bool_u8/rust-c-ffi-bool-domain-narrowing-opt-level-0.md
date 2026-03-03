@@ -1,4 +1,4 @@
-# C–Rust FFI Scalar Domain Narrowing 
+# Formal Analysis of Scalar Domain Narrowing at Rust–C FFI Boundaries Under opt-level=0 
 
 ### Complete Experimental Report
 

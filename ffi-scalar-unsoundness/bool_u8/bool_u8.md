@@ -6,7 +6,7 @@
 
 ## I. Executive Summary
 
-This document records comprehensive experimental findings for FFI scalar domain narrowing at **two optimization levels**: `opt-level=0` (debug mode, default). We demonstrate that boolean invariant enforcement is **optimization-dependent**, with explicit bit masking in debug mode and potential elision in release mode.
+This document records comprehensive experimental findings for FFI scalar domain narrowing at **optimization level**: `opt-level=0` (debug mode, default). We demonstrate that boolean invariant enforcement is **optimization-dependent**, with explicit bit masking in debug mode and potential elision in release mode.
 
 **Key Discovery:** The behavior of FFI scalar domain narrowing varies significantly based on compilation optimization level, suggesting that Rust's semantic enforcement is conditional on optimization assumptions.
 

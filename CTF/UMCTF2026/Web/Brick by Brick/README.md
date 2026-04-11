@@ -46,7 +46,7 @@
 ### Step 1 – Reconnaissance via `robots.txt`
 
 ​	Since the homepage contained no useful information, I started looking for hidden paths. 
-![](imgs\home.png)
+![](imgs/home.png)
 Checking `robots.txt` revealed several disallowed internal documents:
 
 ```python
@@ -124,7 +124,7 @@ define('DASHBOARD_PASS', 'administrator');
 define('FLAG', 'UMASS{4lw4ys_ch4ng3_d3f4ult_cr3d3nt14ls}');
 ```
 
-![](imgs\flag.png)
+![](imgs/flag.png)
 
 - ## Key Takeaways
 
